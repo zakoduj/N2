@@ -22,6 +22,7 @@ public class Client extends WebSocketClient {
         this.logger = logger;
 
         this.types.add(Info.class);
+        this.types.add(Table.class);
         this.types.add(TradeWrapper.class);
     }
 
@@ -49,6 +50,18 @@ public class Client extends WebSocketClient {
                 if (object instanceof Info) {
                     // Mamy jakies info - nie wiem co z tym robi - gdzies mozna wyswietlic.
                     Info info = ((Info) object);
+                } else if (object instanceof Table) {
+                    // Jak mamy tablice, to sprawdzamy co to za tablica
+                    Table table = ((Table) object);
+                    // Trzeba teraz sprawdzic, czy nasz table to jest orderbook np
+                    if (table.getTable().toLowerCase().contains("orderbook")) {
+                        // Jak to jest orderbook, to mozemy miec 4 akcje: insert, update, delete i partial (ten na samym poczatku leci - to jest taki initial state)
+                        jsonConverter = new JsonConverter(TableOrders.class);
+                        object = jsonConverter.fromJsonString(s);
+                        TableOrders tableOrders = ((TableOrders) object);
+
+                        // I teraz interesuje nas rodzaj action, czy update, delete insert etc. I na bazie action nastepnie managujemy naszym orderbookiem.
+                    }
                 } else if (object instanceof TradeWrapper) {
                     // Mamy trade - trzeba go wsadzic do tablicy tradów
                     TradeWrapper tradeWrapper = ((TradeWrapper) object);
