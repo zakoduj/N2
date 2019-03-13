@@ -1,18 +1,24 @@
-import Algorithm.Logger;
+import Algorithm.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AppController extends JFrame {
     private final AppView appView;
     private final Logger logger = new Logger();
     private final ImageLoader imageLoader;
+    private final AppModel appModel = new AppModel();
+
+    private final FeedManager feedManager = new FeedManager();
+    private final List<DataSource> dataSources = new ArrayList<>();
 
     public AppController(ImageLoader imageLoader) {
         this.imageLoader = imageLoader;
 
-        this.appView = new AppView();
+        this.appView = new AppView(appModel);
         setContentPane(appView.getRootView());
         setDefaultCloseOperation(AppController.EXIT_ON_CLOSE);
         setPreferredSize(new Dimension(1000, 600));
@@ -29,6 +35,13 @@ public class AppController extends JFrame {
             try {
                 // nazwe feedu zawsze bierzemy z menu
                 String feedName = e.getActionCommand();
+                Feed feed = feedManager.find(feedName);
+                if (feed == null) {
+                    // Tu powinien byc feedFactory.create(feedName);
+                    feedManager.add(feed);
+                }
+                dataSources.add(new DataSourceExchange(feed));
+                appView.rebuild();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
             }

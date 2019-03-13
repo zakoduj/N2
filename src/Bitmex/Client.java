@@ -1,5 +1,6 @@
 package Bitmex;
 
+import Algorithm.Feed;
 import Algorithm.JsonConverter;
 import Algorithm.Logger;
 import org.java_websocket.client.WebSocketClient;
@@ -10,7 +11,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Client extends WebSocketClient {
+public class Client extends Feed<Client> {
     private final Logger logger;
     private final List<Class<?>> types = new ArrayList<>();
 
@@ -18,7 +19,7 @@ public class Client extends WebSocketClient {
     private final Trades trades = new Trades(50);
 
     public Client(Logger logger) throws URISyntaxException {
-        super(new URI("wss://www.bitmex.com/realtime"));
+        super(Client.class, "wss://www.bitmex.com/realtime");
         this.logger = logger;
 
         this.types.add(Info.class);
