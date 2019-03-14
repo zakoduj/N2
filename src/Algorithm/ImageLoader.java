@@ -16,7 +16,7 @@ public class ImageLoader {
         return new ImageIcon(url);
     }
 
-    Image loadAsImage(String resName) {
+    public Image loadAsImage(String resName) {
         return this.loadAsImageIcon(resName).getImage();
     }
 }

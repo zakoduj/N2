@@ -6,6 +6,7 @@ import org.jfree.chart.annotations.*;
 import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.block.BlockBorder;
 import org.jfree.chart.plot.*;
 import org.jfree.chart.renderer.category.DefaultCategoryItemRenderer;
@@ -23,6 +24,14 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+
+enum Category {
+    LONGS,
+    SHORTS,
+    BUYS,
+    SELLS,
+    PRICE
+}
 
 public class AppView {
     private final JPanel rootPane = new JPanel();
@@ -49,7 +58,7 @@ public class AppView {
         splitPane.setBorder(new EmptyBorder(0,0,0,0));
         splitPane.setResizeWeight(.5);
 
-        for (int index = 0; index < 1; index++) {
+        for (int index = 0; index < 3; index++) {
             JPanel panel = this.create(null);
             if (index <= 1) {
                 splitPane.add(panel);
@@ -67,6 +76,11 @@ public class AppView {
         this.rootPane.repaint();
     }
 
+    /**
+     * Dobra, teraz co trzeba z datasource?
+     * @param dataSource
+     * @return
+     */
     private JPanel create(DataSource dataSource) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -76,100 +90,92 @@ public class AppView {
         dataset.setValue( "Short" , new Double( 11 ) );
         dataset.setValue( "Long" , new Double( 20 ) );
 
-//        panel.add(new ChartPanel(createPieChart("Market", dataset)));
-//        panel.add(new ChartPanel(createPieChart("Market", dataset)));
 
         /**
-         * Category data set per wszystko co chcemy pokazac na jednym plocie? No tak.
+         * Category data set per wszystko co chcemy pokazac na jednym plocie? No tak. Pozycje
          */
-        DefaultCategoryDataset categoryDataset = new DefaultCategoryDataset();
-        categoryDataset.addValue(1.0, new Integer(1), new Integer(1));
-        categoryDataset.addValue(2.0, new Integer(1), new Integer(2));
-        categoryDataset.addValue(3.0, new Integer(1), new Integer(3));
-        categoryDataset.addValue(5.0, new Integer(1), new Integer(4));
+        DefaultCategoryDataset positions = new DefaultCategoryDataset();
+        positions.addValue(1.0, Category.LONGS, new Integer(1));
+        positions.addValue(2.0, Category.LONGS, new Integer(2));
+        positions.addValue(3.0, Category.LONGS, new Integer(3));
+        positions.addValue(5.0, Category.LONGS, new Integer(4));
 
-        categoryDataset.addValue(3.0, new Integer(2), new Integer(1));
-        categoryDataset.addValue(1.0, new Integer(2), new Integer(2));
-        categoryDataset.addValue(2.0, new Integer(2), new Integer(3));
-        categoryDataset.addValue(1.0, new Integer(2), new Integer(4));
+        positions.addValue(3.0, Category.SHORTS, new Integer(1));
+        positions.addValue(1.0, Category.SHORTS, new Integer(2));
+        positions.addValue(2.0, Category.SHORTS, new Integer(3));
+        positions.addValue(1.0, Category.SHORTS, new Integer(4));
 
-        DateFormat dateFormat = new SimpleDateFormat("kk:mm");
-        DateAxis dateAxis = new DateAxis();
-        dateAxis.setLabelPaint(AppColors.text);
-        dateAxis.setDateFormatOverride(dateFormat);
-        dateAxis.setLowerMargin(0.02);
-        dateAxis.setUpperMargin(0.02);
-        dateAxis.setTickLabelPaint(AppColors.text);
+        /**
+         * Wykonania (pozycji)
+         */
+        DefaultCategoryDataset executions = new DefaultCategoryDataset();
+        executions.addValue(11.0, Category.BUYS, new Integer(1));
+        executions.addValue(12.0, Category.BUYS, new Integer(2));
+        executions.addValue(31.0, Category.BUYS, new Integer(3));
+        executions.addValue(25.0, Category.BUYS, new Integer(4));
 
-        NumberAxis priceAxis = new NumberAxis();
-        priceAxis.setLabelPaint(AppColors.text);
-        priceAxis.setAutoRangeIncludesZero(false);
-        priceAxis.setTickLabelPaint(AppColors.text);
-        priceAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
+        executions.addValue(13.0, Category.SELLS, new Integer(1));
+        executions.addValue(9.0, Category.SELLS, new Integer(2));
+        executions.addValue(2.0, Category.SELLS, new Integer(3));
+        executions.addValue(1.0, Category.SELLS, new Integer(4));
 
-        CombinedDomainCategoryPlot combinedDomainCategoryPlot = new CombinedDomainCategoryPlot();
-        combinedDomainCategoryPlot.setOrientation(PlotOrientation.VERTICAL);
-//        combinedDomainCategoryPlot.setGap(10);
+        /**
+         * Cena
+         */
+        DefaultCategoryDataset prices = new DefaultCategoryDataset();
+        prices.addValue(3600.0, Category.PRICE, new Integer(1));
+        prices.addValue(3605.0, Category.PRICE, new Integer(2));
+        prices.addValue(3649.0, Category.PRICE, new Integer(3));
+        prices.addValue(3599.0, Category.PRICE, new Integer(4));
 
-        final CategoryAxis domainAxis = combinedDomainCategoryPlot.getDomainAxis();
-        domainAxis.setCategoryMargin(0);
+        CombinedDomainCategoryPlot combinedDomainCategoryPlot = this.createCombinedDomainCategoryPlot();
+        combinedDomainCategoryPlot.add(this.createCategoryPlot(prices));
+        combinedDomainCategoryPlot.add(this.createStackedCategoryPlot(positions));
+        combinedDomainCategoryPlot.add(this.createStackedCategoryPlot(executions));
 
-        CategoryPlot categoryPlot =
-                new CategoryPlot(categoryDataset, domainAxis, priceAxis, new StackedAreaRenderer());
-        categoryPlot.setForegroundAlpha(0.5f);
-        categoryPlot.setBackgroundPaint(Color.lightGray);
-        categoryPlot.setDomainGridlinePaint(Color.white);
-        categoryPlot.setRangeGridlinePaint(Color.white);
-        categoryPlot.addAnnotation(createCustomAnnotation2("lol"));
-        combinedDomainCategoryPlot.add(categoryPlot);
-        JFreeChart chart = new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, categoryPlot, true);
+        JFreeChart chart = new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, combinedDomainCategoryPlot, true);
         panel.add(new ChartPanel(chart));
 
         return panel;
     }
 
-    private XYTitleAnnotation createPlotLegend(XYPlot plot) {
-        LegendTitle lt = new LegendTitle(plot);
-        lt.setItemPaint(AppColors.text);
-        lt.setBackgroundPaint(AppColors.window);
-        lt.setFrame(new BlockBorder(new RectangleInsets(1,0,0,1), AppColors.grid));
-        XYTitleAnnotation ta = new XYTitleAnnotation(0, 0, lt, RectangleAnchor.BOTTOM_LEFT);
-        ta.setMaxWidth(0.48);
-        return ta;
+    private CombinedDomainCategoryPlot createCombinedDomainCategoryPlot() {
+        CombinedDomainCategoryPlot plot = new CombinedDomainCategoryPlot();
+        plot.setOrientation(PlotOrientation.VERTICAL);
+        plot.setGap(10);
+        CategoryAxis axis = plot.getDomainAxis();
+        axis.setCategoryMargin(0);
+        axis.setTickLabelsVisible(false);
+        return plot;
     }
 
-    private XYTitleAnnotation createCustomAnnotation(String text) {
-        TextTitle textTitle = new TextTitle(text);
-        textTitle.setPaint(AppColors.text);
-        XYTitleAnnotation ta = new XYTitleAnnotation(0.01, 0.98, textTitle, RectangleAnchor.TOP_LEFT);
-        ta.setMaxWidth(0.48);
-        return ta;
+    private CategoryPlot createStackedCategoryPlot(CategoryDataset dataset) {
+        CategoryPlot categoryPlot = new CategoryPlot(dataset, null, createRangeAxis(), new StackedAreaRenderer());
+        categoryPlot.setForegroundAlpha(0.5f);
+        categoryPlot.setNoDataMessage("No data to display");
+        categoryPlot.setBackgroundPaint(AppColors.background);
+        categoryPlot.setDomainGridlinePaint(AppColors.grid);
+        categoryPlot.setRangeGridlinePaint(AppColors.grid);
+        return categoryPlot;
     }
 
-    private CategoryAnnotation createCustomAnnotation2(String text) {
-        CategoryAnnotation ta = new CategoryPointerAnnotation(text, new Integer(1), 1, 90);
-        return ta;
+    private CategoryPlot createCategoryPlot(CategoryDataset dataset) {
+        CategoryPlot categoryPlot = new CategoryPlot(dataset, null, createRangeAxis(), new DefaultCategoryItemRenderer());
+        categoryPlot.setForegroundAlpha(0.5f);
+        categoryPlot.setNoDataMessage("No data to display");
+        categoryPlot.setBackgroundPaint(AppColors.background);
+        categoryPlot.setDomainGridlinePaint(AppColors.grid);
+        categoryPlot.setRangeGridlinePaint(AppColors.grid);
+
+        return categoryPlot;
     }
 
-    /**
-     * Tworzy jeden pie chart.
-     * @return
-     */
-    private JFreeChart createPieChart(String title, DefaultPieDataset dataset) {
-        PiePlot piePlot = createPiePlot(dataset);
-        JFreeChart chart = new JFreeChart(title, JFreeChart.DEFAULT_TITLE_FONT, piePlot, false);
-        chart.setBackgroundPaint(new Color(255, 255, 255, 0));
-        return chart;
-    }
-
-    private PiePlot createPiePlot(DefaultPieDataset dataset) {
-        PiePlot piePlot = new PiePlot(dataset);
-        piePlot.setBackgroundPaint(AppColors.background);
-        piePlot.setOutlineVisible(false);
-        piePlot.setOutlineVisible(false);
-        piePlot.setShadowXOffset(0);
-        piePlot.setShadowYOffset(0);
-        return piePlot;
+    private ValueAxis createRangeAxis() {
+        NumberAxis axis = new NumberAxis();
+        axis.setLabelPaint(AppColors.text);
+        axis.setAutoRangeIncludesZero(false);
+        axis.setTickLabelPaint(AppColors.text);
+        return axis;
     }
 
     JPanel getRootView(){
