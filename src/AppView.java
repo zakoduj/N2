@@ -1,18 +1,21 @@
 import Algorithm.DataSource;
+import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.annotations.XYTitleAnnotation;
+import org.jfree.chart.annotations.*;
+import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.block.BlockBorder;
-import org.jfree.chart.plot.CombinedDomainXYPlot;
-import org.jfree.chart.plot.PiePlot;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.plot.*;
+import org.jfree.chart.renderer.category.DefaultCategoryItemRenderer;
+import org.jfree.chart.renderer.category.StackedAreaRenderer;
 import org.jfree.chart.title.LegendTitle;
 import org.jfree.chart.title.TextTitle;
 import org.jfree.chart.ui.RectangleAnchor;
 import org.jfree.chart.ui.RectangleInsets;
+import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
 import javax.swing.*;
@@ -46,7 +49,7 @@ public class AppView {
         splitPane.setBorder(new EmptyBorder(0,0,0,0));
         splitPane.setResizeWeight(.5);
 
-        for (int index = 0; index < 5; index++) {
+        for (int index = 0; index < 1; index++) {
             JPanel panel = this.create(null);
             if (index <= 1) {
                 splitPane.add(panel);
@@ -73,8 +76,22 @@ public class AppView {
         dataset.setValue( "Short" , new Double( 11 ) );
         dataset.setValue( "Long" , new Double( 20 ) );
 
-        panel.add(new ChartPanel(createPieChart("Market", dataset)));
-        panel.add(new ChartPanel(createPieChart("Market", dataset)));
+//        panel.add(new ChartPanel(createPieChart("Market", dataset)));
+//        panel.add(new ChartPanel(createPieChart("Market", dataset)));
+
+        /**
+         * Category data set per wszystko co chcemy pokazac na jednym plocie? No tak.
+         */
+        DefaultCategoryDataset categoryDataset = new DefaultCategoryDataset();
+        categoryDataset.addValue(1.0, new Integer(1), new Integer(1));
+        categoryDataset.addValue(2.0, new Integer(1), new Integer(2));
+        categoryDataset.addValue(3.0, new Integer(1), new Integer(3));
+        categoryDataset.addValue(5.0, new Integer(1), new Integer(4));
+
+        categoryDataset.addValue(3.0, new Integer(2), new Integer(1));
+        categoryDataset.addValue(1.0, new Integer(2), new Integer(2));
+        categoryDataset.addValue(2.0, new Integer(2), new Integer(3));
+        categoryDataset.addValue(1.0, new Integer(2), new Integer(4));
 
         DateFormat dateFormat = new SimpleDateFormat("kk:mm");
         DateAxis dateAxis = new DateAxis();
@@ -88,20 +105,25 @@ public class AppView {
         priceAxis.setLabelPaint(AppColors.text);
         priceAxis.setAutoRangeIncludesZero(false);
         priceAxis.setTickLabelPaint(AppColors.text);
+        priceAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
 
-        XYPlot xyPlot = new XYPlot(null, null, priceAxis, null);
-        xyPlot.setBackgroundPaint(AppColors.background);
-        xyPlot.setDomainGridlinePaint(AppColors.grid);
-        xyPlot.setRangeGridlinePaint(AppColors.grid);
-        xyPlot.setNoDataMessage("No data to display");
-        xyPlot.setNoDataMessagePaint(AppColors.text);
-        xyPlot.addAnnotation(this.createPlotLegend(xyPlot));
-        xyPlot.addAnnotation(this.createCustomAnnotation("cos tam"));
+        CombinedDomainCategoryPlot combinedDomainCategoryPlot = new CombinedDomainCategoryPlot();
+        combinedDomainCategoryPlot.setOrientation(PlotOrientation.VERTICAL);
+//        combinedDomainCategoryPlot.setGap(10);
 
-        CombinedDomainXYPlot combinedDomainXYPlot = new CombinedDomainXYPlot(dateAxis);
-        combinedDomainXYPlot.setOrientation(PlotOrientation.VERTICAL);
-        combinedDomainXYPlot.add(xyPlot, 3);
-        combinedDomainXYPlot.setGap(10);
+        final CategoryAxis domainAxis = combinedDomainCategoryPlot.getDomainAxis();
+        domainAxis.setCategoryMargin(0);
+
+        CategoryPlot categoryPlot =
+                new CategoryPlot(categoryDataset, domainAxis, priceAxis, new StackedAreaRenderer());
+        categoryPlot.setForegroundAlpha(0.5f);
+        categoryPlot.setBackgroundPaint(Color.lightGray);
+        categoryPlot.setDomainGridlinePaint(Color.white);
+        categoryPlot.setRangeGridlinePaint(Color.white);
+        categoryPlot.addAnnotation(createCustomAnnotation2("lol"));
+        combinedDomainCategoryPlot.add(categoryPlot);
+        JFreeChart chart = new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, categoryPlot, true);
+        panel.add(new ChartPanel(chart));
 
         return panel;
     }
@@ -124,20 +146,30 @@ public class AppView {
         return ta;
     }
 
+    private CategoryAnnotation createCustomAnnotation2(String text) {
+        CategoryAnnotation ta = new CategoryPointerAnnotation(text, new Integer(1), 1, 90);
+        return ta;
+    }
+
     /**
      * Tworzy jeden pie chart.
      * @return
      */
     private JFreeChart createPieChart(String title, DefaultPieDataset dataset) {
+        PiePlot piePlot = createPiePlot(dataset);
+        JFreeChart chart = new JFreeChart(title, JFreeChart.DEFAULT_TITLE_FONT, piePlot, false);
+        chart.setBackgroundPaint(new Color(255, 255, 255, 0));
+        return chart;
+    }
+
+    private PiePlot createPiePlot(DefaultPieDataset dataset) {
         PiePlot piePlot = new PiePlot(dataset);
         piePlot.setBackgroundPaint(AppColors.background);
         piePlot.setOutlineVisible(false);
         piePlot.setOutlineVisible(false);
         piePlot.setShadowXOffset(0);
         piePlot.setShadowYOffset(0);
-        JFreeChart chart = new JFreeChart(title, JFreeChart.DEFAULT_TITLE_FONT, piePlot, false);
-        chart.setBackgroundPaint(new Color(255, 255, 255, 0));
-        return chart;
+        return piePlot;
     }
 
     JPanel getRootView(){
