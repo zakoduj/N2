@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * feed to jest obiekt ktory dostarcza nam danych. Taki obiekt jest zamykalny.
+ * feed to jest obiekt ktory dostarcza nam danych. Taki obiekt jest zamykalny. Feed wypluwa info w real time.
+ * Powienien zatem miec intefejs do pushowania informacji, ktore nas interesuja.
  */
 public abstract class Feed<T> extends WebSocketClient {
     private final Class<T> type;

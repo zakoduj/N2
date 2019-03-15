@@ -1,4 +1,5 @@
 import Algorithm.*;
+import Bitmex.Bitmex;
 
 import javax.swing.*;
 import java.awt.*;
@@ -55,12 +56,12 @@ public class AppController extends JFrame {
         pack();
         center(this);
 
-//        try {
-//            Bitmex.Client client = new Bitmex.Client(this.logger);
-//            client.connect();
-//        } catch (Exception e) {
-//            JOptionPane.showMessageDialog(this, e.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
-//        }
+        try {
+            Bitmex client = new Bitmex(this.logger);
+            client.connect();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     /*
