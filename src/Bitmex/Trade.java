@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Trade {
     private String timestamp;
-    private String symbol;
-    private String side;
-    private long size;
+    private Symbol symbol;
+    private Side side;
+    private double size;
     private double price;
     private String tickDirection;
     private String trdMatchID;
-    private long grossValue;
+    private double grossValue;
     private double homeNotional;
-    private long foreignNotional;
+    private double foreignNotional;
 
     @JsonProperty("timestamp")
     public String getTimestamp() { return timestamp; }
@@ -20,19 +20,19 @@ public class Trade {
     public void setTimestamp(String value) { this.timestamp = value; }
 
     @JsonProperty("symbol")
-    public String getSymbol() { return symbol; }
+    public Symbol getSymbol() { return symbol; }
     @JsonProperty("symbol")
-    public void setSymbol(String value) { this.symbol = value; }
+    public void setSymbol(Symbol value) { this.symbol = value; }
 
     @JsonProperty("side")
-    public String getSide() { return side; }
+    public Side getSide() { return side; }
     @JsonProperty("side")
-    public void setSide(String value) { this.side = value; }
+    public void setSide(Side value) { this.side = value; }
 
     @JsonProperty("size")
-    public long getSize() { return size; }
+    public double getSize() { return size; }
     @JsonProperty("size")
-    public void setSize(long value) { this.size = value; }
+    public void setSize(double value) { this.size = value; }
 
     @JsonProperty("price")
     public double getPrice() { return price; }
@@ -50,9 +50,9 @@ public class Trade {
     public void setTrdMatchID(String value) { this.trdMatchID = value; }
 
     @JsonProperty("grossValue")
-    public long getGrossValue() { return grossValue; }
+    public double getGrossValue() { return grossValue; }
     @JsonProperty("grossValue")
-    public void setGrossValue(long value) { this.grossValue = value; }
+    public void setGrossValue(double value) { this.grossValue = value; }
 
     @JsonProperty("homeNotional")
     public double getHomeNotional() { return homeNotional; }
@@ -60,7 +60,7 @@ public class Trade {
     public void setHomeNotional(double value) { this.homeNotional = value; }
 
     @JsonProperty("foreignNotional")
-    public long getForeignNotional() { return foreignNotional; }
+    public double getForeignNotional() { return foreignNotional; }
     @JsonProperty("foreignNotional")
-    public void setForeignNotional(long value) { this.foreignNotional = value; }
+    public void setForeignNotional(double value) { this.foreignNotional = value; }
 }

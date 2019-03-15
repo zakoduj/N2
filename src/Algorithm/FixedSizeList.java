@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class FixedSizeList<T> {
     public final int capacity;
@@ -50,5 +51,13 @@ public class FixedSizeList<T> {
 
     public int size() {
         return this.collection.size();
+    }
+
+    public List<T> select(Predicate<T> filter) {
+        List<T> result = new ArrayList<>();
+        this.collection.forEach(o -> {
+            if (filter.test(o)) result.add(o);
+        });
+        return result;
     }
 }

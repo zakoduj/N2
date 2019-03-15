@@ -3,16 +3,16 @@ package Bitmex;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 class Order {
-    private String symbol;
+    private Symbol symbol;
     private long id;
-    private String side;
-    private long size;
-    private long price;
+    private Side side;
+    private double size;
+    private double price;
 
     @JsonProperty("symbol")
-    public String getSymbol() { return symbol; }
+    public Symbol getSymbol() { return symbol; }
     @JsonProperty("symbol")
-    public void setSymbol(String value) { this.symbol = value; }
+    public void setSymbol(Symbol value) { this.symbol = value; }
 
     @JsonProperty("id")
     public long getID() { return id; }
@@ -20,19 +20,19 @@ class Order {
     public void setID(long value) { this.id = value; }
 
     @JsonProperty("side")
-    public String getSide() { return side; }
+    public Side getSide() { return side; }
     @JsonProperty("side")
-    public void setSide(String value) { this.side = value; }
+    public void setSide(Side value) { this.side = value; }
 
     @JsonProperty("size")
-    public long getSize() { return size; }
+    public double getSize() { return size; }
     @JsonProperty("size")
-    public void setSize(long value) { this.size = value; }
+    public void setSize(double value) { this.size = value; }
 
     @JsonProperty("price")
-    public long getPrice() { return price; }
+    public double getPrice() { return price; }
     @JsonProperty("price")
-    public void setPrice(long value) { this.price = value; }
+    public void setPrice(double value) { this.price = value; }
 
     @Override
     public boolean equals(Object other) {

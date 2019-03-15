@@ -8,7 +8,9 @@ import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 
 public class Bitmex extends Feed<Bitmex> {
     private final Logger logger;
@@ -39,8 +41,7 @@ public class Bitmex extends Feed<Bitmex> {
     }
 
     /**
-     * Jak sie wszystko przeprocesuje - to wtedy powinien ciachnac pusha do wszystkich zainteresowanych. Ale ten push, jest tez w tylu edycjach co jest
-     * zasubskrybowanych kanałów.
+     * Jak sie wszystko przeprocesuje - to wtedy powinien ciachnac pusha do wszystkich zainteresowanych.
      * @param s
      */
     @Override
@@ -83,6 +84,21 @@ public class Bitmex extends Feed<Bitmex> {
                                 }
                             }
                         }
+
+                        // W tym miejscu aktualizujemy nacisk oraz cene
+                        List<Order> buys = this.orderBook.select(order -> order.getSide().equals(Side.Buy));
+                        buys.sort(Comparator.comparing(Order::getPrice).reversed());
+                        List<Order> sells = this.orderBook.select(order -> order.getSide().equals(Side.Sell));
+                        sells.sort(Comparator.comparing(Order::getPrice));
+
+                        if (!buys.isEmpty() && !sells.isEmpty()) {
+                            double price = (buys.get(0).getPrice() + sells.get(0).getPrice()) / 2;
+                            double buySize = buys.get(0).getSize();
+                            double sellSize = sells.get(0).getSize();
+
+                            // Teraz notify wszystkie obserwery
+
+                        }
                     }
                     break;
                     case trade: {
@@ -108,6 +124,12 @@ public class Bitmex extends Feed<Bitmex> {
                                 }
                             }
                         }
+
+                        // W tym miejscu aktualizujemy co sie stało - czyli trady
+                        List<Trade> buys = this.tradeBook.select(trade -> trade.getSide().equals(Side.Buy));
+                        double buySum = buys.stream().mapToDouble(value -> value.getSize()).sum();
+                        List<Trade> sells = this.tradeBook.select(trade -> trade.getSide().equals(Side.Sell));
+                        double sellSum = sells.stream().mapToDouble(value -> value.getSize()).sum();
                     }
                     break;
                     default:
@@ -116,8 +138,14 @@ public class Bitmex extends Feed<Bitmex> {
             }
         }
 
+        /**
+         * Teraz powinien pushnac dane do wszystkich obserwerów. Z tym ze trzeva zrobic unifikacje danych tutaj.
+         */
+
         System.out.println("Current trades count: " + this.tradeBook.size());
         System.out.println("Current offers count: " + this.orderBook.size());
+
+        int a = 0;
     }
 
     @Override

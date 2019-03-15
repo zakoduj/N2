@@ -25,14 +25,6 @@ import java.awt.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
-enum Category {
-    LONGS,
-    SHORTS,
-    BUYS,
-    SELLS,
-    PRICE
-}
-
 public class AppView {
     private final JPanel rootPane = new JPanel();
     private final AppModel appModel;
