@@ -1,4 +1,6 @@
-enum Category {
+package Algorithm;
+
+public enum Category {
     LONGS,
     SHORTS,
     BUYS,

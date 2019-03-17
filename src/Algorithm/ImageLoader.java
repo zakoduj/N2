@@ -5,18 +5,16 @@ import java.awt.*;
 import java.net.URL;
 
 public class ImageLoader {
-    private final ClassLoader classLoader;
-
-    public ImageLoader() {
-        this.classLoader = ClassLoader.getSystemClassLoader();
-    }
-
-    public ImageIcon loadAsImageIcon(String resName) {
-        URL url = this.classLoader.getResource(resName);
+    public static ImageIcon loadAsImageIcon(String resName) {
+        final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+        URL url = classLoader.getResource(resName);
+        if (url == null) {
+            throw new IllegalArgumentException(resName + " is not contained within resources.");
+        }
         return new ImageIcon(url);
     }
 
-    public Image loadAsImage(String resName) {
-        return this.loadAsImageIcon(resName).getImage();
+    public static Image loadAsImage(String resName) {
+        return loadAsImageIcon(resName).getImage();
     }
 }

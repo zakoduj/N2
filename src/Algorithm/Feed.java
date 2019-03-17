@@ -29,7 +29,7 @@ public abstract class Feed<T> extends WebSocketClient {
     void addObserver(IFeedObserver observer) {
         this.observerList.add(observer);
         if (!this.observerList.isEmpty()) {
-            this.connect();
+//            this.connect();
         }
     }
 

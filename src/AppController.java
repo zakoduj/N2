@@ -1,23 +1,17 @@
-import Algorithm.*;
+import Algorithm.DataSourceExchange;
+import Algorithm.Feed;
+import Algorithm.ImageLoader;
 import Bitmex.Bitmex;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
-import java.util.List;
 
 public class AppController extends JFrame {
     private final AppView appView;
-    private final Logger logger = new Logger();
-    private final ImageLoader imageLoader;
     private final AppModel appModel = new AppModel();
 
-    private final FeedManager feedManager = new FeedManager();
-    private final List<DataSource> dataSources = new ArrayList<>();
-
-    public AppController(ImageLoader imageLoader) {
-        this.imageLoader = imageLoader;
+    public AppController() {
 
         this.appView = new AppView(appModel);
         setContentPane(appView.getRootView());
@@ -36,15 +30,16 @@ public class AppController extends JFrame {
             try {
                 // nazwe feedu zawsze bierzemy z menu
                 String feedName = e.getActionCommand();
-                Feed feed = feedManager.find(feedName);
+                Feed feed = appModel.feedManager.find(feedName);
                 if (feed == null) {
                     // Tu powinien byc feedFactory.create(feedName);
-                    feedManager.add(feed);
+                    feed = new Bitmex(appModel.logger);
+                    appModel.feedManager.add(feed);
                 }
-                dataSources.add(new DataSourceExchange(feed));
+                appModel.dataSources.add(new DataSourceExchange(feed));
                 appView.rebuild();
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         }));
         menuFile.add(menuDataSource);
@@ -56,12 +51,12 @@ public class AppController extends JFrame {
         pack();
         center(this);
 
-        try {
-            Bitmex client = new Bitmex(this.logger);
-            client.connect();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
-        }
+//        try {
+//            Bitmex client = new Bitmex(this.logger);
+//            client.connect();
+//        } catch (Exception e) {
+//            JOptionPane.showMessageDialog(this, e.getMessage(), "ERROR", JOptionPane.INFORMATION_MESSAGE);
+//        }
     }
 
     /*
@@ -80,9 +75,9 @@ public class AppController extends JFrame {
         }
         JMenuItem menuItem;
         if (!iconPath.isEmpty()) {
-            ImageIcon imageIcon = this.imageLoader.loadAsImageIcon(iconPath);
+            ImageIcon imageIcon = ImageLoader.loadAsImageIcon(iconPath);
             if (imageIcon != null)
-                menuItem = new JMenuItem(name, this.imageLoader.loadAsImageIcon(iconPath));
+                menuItem = new JMenuItem(name, imageIcon);
             else
                 menuItem = new JMenuItem(name);
         } else {

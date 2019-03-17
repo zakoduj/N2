@@ -26,7 +26,6 @@ public class Bitmex extends Feed<Bitmex> {
     /**
      * Jak jest opened - to trzeba odpalic mu sekwencje send z subami. Czyli trzeba sporzadzic liste subów, ktore nas interesuja, i dl kazdego elementu tej listy,
      * odpalic suba.
-     * @param serverHandshake
      */
     @Override
     public void onOpen(ServerHandshake serverHandshake) {
@@ -42,7 +41,6 @@ public class Bitmex extends Feed<Bitmex> {
 
     /**
      * Jak sie wszystko przeprocesuje - to wtedy powinien ciachnac pusha do wszystkich zainteresowanych.
-     * @param s
      */
     @Override
     public void onMessage(String s) {
@@ -144,8 +142,6 @@ public class Bitmex extends Feed<Bitmex> {
 
         System.out.println("Current trades count: " + this.tradeBook.size());
         System.out.println("Current offers count: " + this.orderBook.size());
-
-        int a = 0;
     }
 
     @Override

@@ -15,52 +15,52 @@ public class Trade {
     private double foreignNotional;
 
     @JsonProperty("timestamp")
-    public String getTimestamp() { return timestamp; }
+    String getTimestamp() { return timestamp; }
     @JsonProperty("timestamp")
-    public void setTimestamp(String value) { this.timestamp = value; }
+    void setTimestamp(String value) { this.timestamp = value; }
 
     @JsonProperty("symbol")
-    public Symbol getSymbol() { return symbol; }
+    Symbol getSymbol() { return symbol; }
     @JsonProperty("symbol")
-    public void setSymbol(Symbol value) { this.symbol = value; }
+    void setSymbol(Symbol value) { this.symbol = value; }
 
     @JsonProperty("side")
-    public Side getSide() { return side; }
+    Side getSide() { return side; }
     @JsonProperty("side")
-    public void setSide(Side value) { this.side = value; }
+    void setSide(Side value) { this.side = value; }
 
     @JsonProperty("size")
-    public double getSize() { return size; }
+    double getSize() { return size; }
     @JsonProperty("size")
-    public void setSize(double value) { this.size = value; }
+    void setSize(double value) { this.size = value; }
 
     @JsonProperty("price")
-    public double getPrice() { return price; }
+    double getPrice() { return price; }
     @JsonProperty("price")
-    public void setPrice(double value) { this.price = value; }
+    void setPrice(double value) { this.price = value; }
 
     @JsonProperty("tickDirection")
-    public String getTickDirection() { return tickDirection; }
+    String getTickDirection() { return tickDirection; }
     @JsonProperty("tickDirection")
-    public void setTickDirection(String value) { this.tickDirection = value; }
+    void setTickDirection(String value) { this.tickDirection = value; }
 
     @JsonProperty("trdMatchID")
-    public String getTrdMatchID() { return trdMatchID; }
+    String getTrdMatchID() { return trdMatchID; }
     @JsonProperty("trdMatchID")
-    public void setTrdMatchID(String value) { this.trdMatchID = value; }
+    void setTrdMatchID(String value) { this.trdMatchID = value; }
 
     @JsonProperty("grossValue")
-    public double getGrossValue() { return grossValue; }
+    double getGrossValue() { return grossValue; }
     @JsonProperty("grossValue")
-    public void setGrossValue(double value) { this.grossValue = value; }
+    void setGrossValue(double value) { this.grossValue = value; }
 
     @JsonProperty("homeNotional")
-    public double getHomeNotional() { return homeNotional; }
+    double getHomeNotional() { return homeNotional; }
     @JsonProperty("homeNotional")
-    public void setHomeNotional(double value) { this.homeNotional = value; }
+    void setHomeNotional(double value) { this.homeNotional = value; }
 
     @JsonProperty("foreignNotional")
-    public double getForeignNotional() { return foreignNotional; }
+    double getForeignNotional() { return foreignNotional; }
     @JsonProperty("foreignNotional")
-    public void setForeignNotional(double value) { this.foreignNotional = value; }
+    void setForeignNotional(double value) { this.foreignNotional = value; }
 }

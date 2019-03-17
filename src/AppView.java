@@ -1,8 +1,9 @@
+import Algorithm.Category;
 import Algorithm.DataSource;
-import org.jfree.chart.ChartFactory;
+import Algorithm.ImageLoader;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
-import org.jfree.chart.annotations.*;
+import org.jfree.chart.annotations.CategoryTextAnnotation;
 import org.jfree.chart.axis.CategoryAxis;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
@@ -11,23 +12,82 @@ import org.jfree.chart.block.BlockBorder;
 import org.jfree.chart.plot.*;
 import org.jfree.chart.renderer.category.DefaultCategoryItemRenderer;
 import org.jfree.chart.renderer.category.StackedAreaRenderer;
+import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
 import org.jfree.chart.title.LegendTitle;
 import org.jfree.chart.title.TextTitle;
+import org.jfree.chart.ui.HorizontalAlignment;
 import org.jfree.chart.ui.RectangleAnchor;
 import org.jfree.chart.ui.RectangleInsets;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DefaultPieDataset;
+import org.jfree.data.general.Dataset;
+import org.jfree.data.xy.XYDataset;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.lang.reflect.InvocationTargetException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Spliterator;
+import java.util.function.Consumer;
+
+class Plots implements Iterable<Plot> {
+    private final List<Plot> plots = new ArrayList<>();
+
+    <T extends Plot> T find(Class<T> type) {
+        for (Plot plot : this.plots) {
+            if (type.isInstance(plot)) {
+                return type.cast(plot);
+            }
+        }
+        return null;
+    }
+
+    <T extends Plot> T find(Class<T> type, Consumer<T> created) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        for (Plot plot : this.plots) {
+            if (type.isInstance(plot)) {
+                return type.cast(plot);
+            }
+        }
+        T plot = create(type, created);
+        this.plots.add(plot);
+        return plot;
+    }
+
+    void clear() {
+        this.plots.clear();
+    }
+
+    private <T extends Plot> T create(Class<T> aClass, Consumer<T> created) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
+        T plot = aClass.getDeclaredConstructor().newInstance();
+        created.accept(plot);
+        return plot;
+    }
+
+    @Override
+    public Iterator<Plot> iterator() {
+        return this.plots.iterator();
+    }
+
+    @Override
+    public void forEach(Consumer<? super Plot> action) {
+        this.plots.forEach(action);
+    }
+
+    @Override
+    public Spliterator<Plot> spliterator() {
+        return this.plots.spliterator();
+    }
+}
 
 public class AppView {
     private final JPanel rootPane = new JPanel();
     private final AppModel appModel;
+    private final Plots plots = new Plots();
 
     public AppView(AppModel appModel) {
         this.appModel = appModel;
@@ -50,8 +110,8 @@ public class AppView {
         splitPane.setBorder(new EmptyBorder(0,0,0,0));
         splitPane.setResizeWeight(.5);
 
-        for (int index = 0; index < 3; index++) {
-            JPanel panel = this.create(null);
+        for (int index = 0; index < appModel.dataSources.size(); index++) {
+            JPanel panel = this.create(appModel.dataSources.get(index));
             if (index <= 1) {
                 splitPane.add(panel);
             } else {
@@ -78,67 +138,115 @@ public class AppView {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(new EmptyBorder(5, 5, 5, 5));
 
-        DefaultPieDataset dataset = new DefaultPieDataset( );
-        dataset.setValue( "Short" , new Double( 11 ) );
-        dataset.setValue( "Long" , new Double( 20 ) );
+        JPanel panelInfo = new JPanel();
+        panelInfo.setLayout(new BoxLayout(panelInfo, BoxLayout.X_AXIS));
+        panel.add(panelInfo);
 
-
-        /**
-         * Category data set per wszystko co chcemy pokazac na jednym plocie? No tak. Pozycje
-         */
-        DefaultCategoryDataset positions = new DefaultCategoryDataset();
-        positions.addValue(1.0, Category.LONGS, new Integer(1));
-        positions.addValue(2.0, Category.LONGS, new Integer(2));
-        positions.addValue(3.0, Category.LONGS, new Integer(3));
-        positions.addValue(5.0, Category.LONGS, new Integer(4));
-
-        positions.addValue(3.0, Category.SHORTS, new Integer(1));
-        positions.addValue(1.0, Category.SHORTS, new Integer(2));
-        positions.addValue(2.0, Category.SHORTS, new Integer(3));
-        positions.addValue(1.0, Category.SHORTS, new Integer(4));
-
-        /**
-         * Wykonania (pozycji)
-         */
-        DefaultCategoryDataset executions = new DefaultCategoryDataset();
-        executions.addValue(11.0, Category.BUYS, new Integer(1));
-        executions.addValue(12.0, Category.BUYS, new Integer(2));
-        executions.addValue(31.0, Category.BUYS, new Integer(3));
-        executions.addValue(25.0, Category.BUYS, new Integer(4));
-
-        executions.addValue(13.0, Category.SELLS, new Integer(1));
-        executions.addValue(9.0, Category.SELLS, new Integer(2));
-        executions.addValue(2.0, Category.SELLS, new Integer(3));
-        executions.addValue(1.0, Category.SELLS, new Integer(4));
+        JButton buttonClose = new JButton("", ImageLoader.loadAsImageIcon("cancel.png"));
+        buttonClose.setToolTipText("Close current data source");
+        buttonClose.addActionListener(e -> {
+            try {
+                dataSource.close();
+                appModel.dataSources.remove(dataSource);
+                plots.clear();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this.rootPane, ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+            }
+            // Usuniecie data sourcea rowniez powoduje przebudowanie okna.
+            this.rebuild();
+        });
+        panelInfo.add(buttonClose);
 
         /**
-         * Cena
+         * Dla kazdego datasetu tworzymy teraz UI.
          */
-        DefaultCategoryDataset prices = new DefaultCategoryDataset();
-        prices.addValue(3600.0, Category.PRICE, new Integer(1));
-        prices.addValue(3605.0, Category.PRICE, new Integer(2));
-        prices.addValue(3649.0, Category.PRICE, new Integer(3));
-        prices.addValue(3599.0, Category.PRICE, new Integer(4));
+        dataSource.datasets().forEach(dataset -> {
+            try {
+                if (dataset instanceof CategoryDataset) {
+                    CategoryDataset categoryDataset = ((CategoryDataset) dataset);
+                    CategoryPlot plot;
+                    if (categoryDataset.getRowCount() > 1) {
+                        plot = this.createStackedCategoryPlot(categoryDataset);
+                    } else {
+                        plot = this.createCategoryPlot(categoryDataset);
+                    }
+                    LegendTitle lt = new LegendTitle(plot);
+                    lt.setItemPaint(AppColors.text);
+                    lt.setBackgroundPaint(AppColors.window);
+                    lt.setFrame(new BlockBorder(new RectangleInsets(1,0,0,1), AppColors.grid));
 
-        CombinedDomainCategoryPlot combinedDomainCategoryPlot = this.createCombinedDomainCategoryPlot();
-        combinedDomainCategoryPlot.add(this.createCategoryPlot(prices));
-        combinedDomainCategoryPlot.add(this.createStackedCategoryPlot(positions));
-        combinedDomainCategoryPlot.add(this.createStackedCategoryPlot(executions));
+                    TextTitle tt = new TextTitle("This is\na multiline text\nto demonstrate the wrapping");
+                    tt.setTextAlignment(HorizontalAlignment.LEFT);
 
-        JFreeChart chart = new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, combinedDomainCategoryPlot, true);
-        panel.add(new ChartPanel(chart));
+                    AreaTitleAnnotation ata = new AreaTitleAnnotation(lt);
+                    ata.setAnnotationInsets(new RectangleInsets(10, 10, 10, 10));
+                    ata.setAnnotationAnchor(RectangleAnchor.TOP_LEFT);
+                    plot.addAnnotation(ata);
 
+                    CombinedDomainCategoryPlot combined = plots.find(CombinedDomainCategoryPlot.class, p -> {
+                        p.setOrientation(PlotOrientation.VERTICAL);
+                        p.setGap(10);
+                        CategoryAxis axis = p.getDomainAxis();
+                        axis.setCategoryMargin(0);
+                        axis.setTickLabelsVisible(false);
+                    });
+                    combined.add(plot);
+                } else if (dataset instanceof XYDataset) {
+                    XYDataset xyDataset = ((XYDataset) dataset);
+
+                    NumberAxis priceAxis = new NumberAxis();
+                    priceAxis.setLabelPaint(AppColors.text);
+                    priceAxis.setAutoRangeIncludesZero(false);
+                    priceAxis.setTickLabelPaint(AppColors.text);
+
+                    XYPlot xyPlot = new XYPlot(xyDataset, null, priceAxis, new StandardXYItemRenderer());
+                    xyPlot.setBackgroundPaint(AppColors.background);
+                    xyPlot.setDomainGridlinePaint(AppColors.grid);
+                    xyPlot.setRangeGridlinePaint(AppColors.grid);
+                    xyPlot.setNoDataMessage("No data to display");
+                    xyPlot.setNoDataMessagePaint(AppColors.text);
+
+                    LegendTitle lt = new LegendTitle(xyPlot);
+                    lt.setItemPaint(AppColors.text);
+                    lt.setBackgroundPaint(AppColors.window);
+                    lt.setFrame(new BlockBorder(new RectangleInsets(1,0,0,1), AppColors.grid));
+
+                    AreaTitleAnnotation ata = new AreaTitleAnnotation(lt);
+                    ata.setAnnotationInsets(new RectangleInsets(10, 10, 10, 10));
+                    ata.setAnnotationAnchor(RectangleAnchor.TOP_LEFT);
+                    xyPlot.addAnnotation(ata);
+
+                    CombinedDomainXYPlot combined = plots.find(CombinedDomainXYPlot.class, p -> {
+                        p.setOrientation(PlotOrientation.VERTICAL);
+                        p.setGap(10);
+
+                        DateFormat dateFormat = new SimpleDateFormat("kk:mm:ss");
+
+                        DateAxis dateAxis = new DateAxis();
+                        dateAxis.setLabelPaint(AppColors.text);
+                        dateAxis.setDateFormatOverride(dateFormat);
+                        dateAxis.setLowerMargin(0.02);
+                        dateAxis.setUpperMargin(0.02);
+                        dateAxis.setTickLabelPaint(AppColors.text);
+                        p.setDomainAxis(dateAxis);
+
+                    });
+
+
+                    combined.add(xyPlot);
+                } else {
+                    throw new Exception("Plot creation for " + dataset.getClass().getSimpleName() + " was not implemented.");
+                }
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this.rootPane, e.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        /**
+         * A teraz budujemy tyle chartów, ile mamy kombinowanych plotów.
+         */
+        this.plots.forEach(plot -> panel.add(new ChartPanel(new JFreeChart("", JFreeChart.DEFAULT_TITLE_FONT, plot, false))));
         return panel;
-    }
-
-    private CombinedDomainCategoryPlot createCombinedDomainCategoryPlot() {
-        CombinedDomainCategoryPlot plot = new CombinedDomainCategoryPlot();
-        plot.setOrientation(PlotOrientation.VERTICAL);
-        plot.setGap(10);
-        CategoryAxis axis = plot.getDomainAxis();
-        axis.setCategoryMargin(0);
-        axis.setTickLabelsVisible(false);
-        return plot;
     }
 
     private CategoryPlot createStackedCategoryPlot(CategoryDataset dataset) {
