@@ -33,5 +33,5 @@ public enum Endpoint {
     position,    // Updates on your positions
     privateNotifications, // Individual notifications - currently not used
     transact,     // Deposit/Withdrawal updates
-    wallet;       // Bitcoin address balance data, including total deposits & withdrawals
+    wallet       // Bitcoin address balance data, including total deposits & withdrawals
 }

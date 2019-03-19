@@ -3,9 +3,10 @@ package Algorithm;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class Logger {
+public class Logger implements ILogger {
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    @Override
     public void log(String text) {
         StringBuilder builder = new StringBuilder();
         builder.append(formatter.format(LocalDateTime.now()));
@@ -15,6 +16,7 @@ public class Logger {
         System.out.println(builder);
     }
 
+    @Override
     public void log(Exception e) {
         StringBuilder builder = new StringBuilder();
         builder.append(formatter.format(LocalDateTime.now()));

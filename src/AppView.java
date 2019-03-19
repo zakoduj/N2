@@ -35,61 +35,12 @@ import java.util.List;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 
-class Plots implements Iterable<Plot> {
-    private final List<Plot> plots = new ArrayList<>();
-
-    <T extends Plot> T find(Class<T> type) {
-        for (Plot plot : this.plots) {
-            if (type.isInstance(plot)) {
-                return type.cast(plot);
-            }
-        }
-        return null;
-    }
-
-    <T extends Plot> T find(Class<T> type, Consumer<T> created) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        for (Plot plot : this.plots) {
-            if (type.isInstance(plot)) {
-                return type.cast(plot);
-            }
-        }
-        T plot = create(type, created);
-        this.plots.add(plot);
-        return plot;
-    }
-
-    void clear() {
-        this.plots.clear();
-    }
-
-    private <T extends Plot> T create(Class<T> aClass, Consumer<T> created) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
-        T plot = aClass.getDeclaredConstructor().newInstance();
-        created.accept(plot);
-        return plot;
-    }
-
-    @Override
-    public Iterator<Plot> iterator() {
-        return this.plots.iterator();
-    }
-
-    @Override
-    public void forEach(Consumer<? super Plot> action) {
-        this.plots.forEach(action);
-    }
-
-    @Override
-    public Spliterator<Plot> spliterator() {
-        return this.plots.spliterator();
-    }
-}
-
-public class AppView {
+class AppView {
     private final JPanel rootPane = new JPanel();
     private final AppModel appModel;
     private final Plots plots = new Plots();
 
-    public AppView(AppModel appModel) {
+    AppView(AppModel appModel) {
         this.appModel = appModel;
         this.rootPane.setLayout(new BoxLayout(this.rootPane, BoxLayout.X_AXIS));
         this.rootPane.setBorder(new EmptyBorder(10, 0, 10, 10));
@@ -173,7 +124,7 @@ public class AppView {
                     LegendTitle lt = new LegendTitle(plot);
                     lt.setItemPaint(AppColors.text);
                     lt.setBackgroundPaint(AppColors.window);
-                    lt.setFrame(new BlockBorder(new RectangleInsets(1,0,0,1), AppColors.grid));
+                    lt.setFrame(new BlockBorder(new RectangleInsets(1,1,1,1), AppColors.grid));
 
                     TextTitle tt = new TextTitle("This is\na multiline text\nto demonstrate the wrapping");
                     tt.setTextAlignment(HorizontalAlignment.LEFT);
@@ -209,7 +160,7 @@ public class AppView {
                     LegendTitle lt = new LegendTitle(xyPlot);
                     lt.setItemPaint(AppColors.text);
                     lt.setBackgroundPaint(AppColors.window);
-                    lt.setFrame(new BlockBorder(new RectangleInsets(1,0,0,1), AppColors.grid));
+                    lt.setFrame(new BlockBorder(new RectangleInsets(1,1,1,1), AppColors.grid));
 
                     AreaTitleAnnotation ata = new AreaTitleAnnotation(lt);
                     ata.setAnnotationInsets(new RectangleInsets(10, 10, 10, 10));

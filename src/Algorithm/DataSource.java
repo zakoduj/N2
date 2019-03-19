@@ -20,13 +20,11 @@ public abstract class DataSource implements IFeedObserver, AutoCloseable {
      * @return
      */
     public List<Dataset> datasets() {
-        TimeSeriesCollection lol = new TimeSeriesCollection();
-        TimeSeries timeSeries = new TimeSeries("Price");
-        lol.addSeries(timeSeries);
-        timeSeries.addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 1)), 44));
-        timeSeries.addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 2)), 50));
-        timeSeries.addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 3)), 47));
-        timeSeries.addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 4)), 41));
+        TimeSeriesCollection lol = new TimeSeriesCollection(new TimeSeries("Price"));
+        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 1)), 44));
+        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 2)), 50));
+        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 3)), 47));
+        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 4)), 41));
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         dataset.addValue(1.0, Category.LONGS, new Integer(1));

@@ -48,7 +48,9 @@ public class JsonReader {
             JsonNode node = this.mapper.readTree(json);
             for (Map.Entry<String, Class<?>> entry : values.entrySet()) {
                 JsonNode nodeValue = node.get(entry.getKey());
-                result.add(this.mapper.treeToValue(nodeValue, entry.getValue()));
+                if (nodeValue != null) {
+                    result.add(this.mapper.treeToValue(nodeValue, entry.getValue()));
+                }
             }
         } catch (IOException ignored) {
         }

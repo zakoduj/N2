@@ -1,6 +1,6 @@
 import java.awt.*;
 
-public class AppColors {
+class AppColors {
         static final Color text = new Color(169, 183, 198, 255);
         static final Color grid = new Color(169, 183, 198, 100);
         static final Color background = new Color(43,43,43, 255);

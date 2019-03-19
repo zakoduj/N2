@@ -1,9 +1,6 @@
 package Bitmex;
 
-import Algorithm.Feed;
-import Algorithm.JsonReader;
-import Algorithm.JsonWriter;
-import Algorithm.Logger;
+import Algorithm.*;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URISyntaxException;
@@ -13,12 +10,12 @@ import java.util.HashMap;
 import java.util.List;
 
 public class Bitmex extends Feed<Bitmex> {
-    private final Logger logger;
+    private final ILogger logger;
 
     private final TradeBook tradeBook = new TradeBook(50);
     private final OrderBook orderBook = new OrderBook();
 
-    public Bitmex(Logger logger) throws URISyntaxException {
+    public Bitmex(ILogger logger) throws URISyntaxException {
         super(Bitmex.class, "wss://www.bitmex.com/realtime");
         this.logger = logger;
     }

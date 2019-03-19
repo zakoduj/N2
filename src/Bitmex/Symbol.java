@@ -1,5 +1,5 @@
 package Bitmex;
 
 public enum Symbol {
-    XBTUSD;
+    XBTUSD
 }

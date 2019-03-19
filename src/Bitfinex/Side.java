@@ -1,4 +1,4 @@
-package Bitmex;
+package Bitfinex;
 
 public enum Side {
     Buy,
