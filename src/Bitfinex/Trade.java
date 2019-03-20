@@ -1,13 +1,11 @@
 package Bitfinex;
 
-public class Trade {
-    private Side side;
-    private double size;
-    private double price;
+class Trade {
+    final double size;
+    final double price;
 
-    Trade(Side side, double size, double price) {
-        this.side = side;
-        this.size = size;
+    Trade(double price, double size) {
         this.price = price;
+        this.size = size;
     }
 }

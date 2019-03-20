@@ -7,7 +7,6 @@ import Algorithm.JsonWriter;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -65,41 +64,13 @@ public class Bitfinex extends Feed<Bitfinex> {
                 // We need as fucking channel here. Channel number is fuckin' always 1st part.
                 Channel channel = this.channelMap.get((parts[0].get(Integer.class)));
                 switch (channel) {
-                    case trades: {
-                        // First shit, check if the bitch is initial
-                        if (Arrays.stream(parts).anyMatch(part -> part.isComplex())) {
-                            // Is initial
-                            Arrays.stream(parts).filter(p -> p.isComplex()).findFirst().ifPresent(part -> part.get(objects -> {
-                                Integer timestamp = objects[1].get(Integer.class);
-                                Double price = objects[2].get(Double.class);
-                                Double value = objects[3].get(Double.class);
-                                this.tradeBook.add(new Trade(Double.doubleToLongBits(value) < 0 ? Side.Sell : Side.Buy, Math.abs(value), price));
-                            }));
-                        } else {
-                            // Is not initial
-                            Integer timestamp = parts[3].get(Integer.class);
-                            Double price = parts[4].get(Double.class);
-                            Double value = parts[5].get(Double.class);
-                            this.tradeBook.add(new Trade(Double.doubleToLongBits(value) < 0 ? Side.Sell : Side.Buy, Math.abs(value), price));
-                        }
-                    }
-                    break;
-                    case book: {
-                        if (Arrays.stream(parts).anyMatch(part -> part.isComplex())) {
-                            Arrays.stream(parts).filter(p -> p.isComplex()).findFirst().ifPresent(part -> part.get(objects -> {
-                                Double price = objects[0].get(Double.class);
-                                Double count = objects[1].get(Double.class);
-                                Double amount = objects[2].get(Double.class);
-                            }));
-                        } else {
-                            Double price = parts[1].get(Double.class);
-                            Double count = parts[2].get(Double.class);
-                            Double amount = parts[3].get(Double.class);
-                        }
-                    }
-                    break;
+                    case trades:
+                        this.tradeBook.update(parts);
+                        break;
+                    case book:
+                        this.orderBook.update(parts);
+                        break;
                 }
-                int a = 0;
             }
         } catch (Exception e) {
             this.logger.log(e);

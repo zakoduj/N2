@@ -1,7 +1,6 @@
 package Bitfinex;
 
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -29,6 +28,10 @@ class Part {
 
     <T> T get(Class<T> type) {
         return type.cast(this.objectValue);
+    }
+
+    <T> boolean is(Class<T> type) {
+        return type.isInstance(this.objectValue);
     }
 
     void get(Consumer<Part[]> objectValue) {
