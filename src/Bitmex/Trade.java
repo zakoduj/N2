@@ -2,7 +2,7 @@ package Bitmex;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class Trade {
+class Trade {
     private String timestamp;
     private Symbol symbol;
     private Side side;

@@ -116,18 +116,11 @@ class AppView {
                 if (dataset instanceof CategoryDataset) {
                     CategoryDataset categoryDataset = ((CategoryDataset) dataset);
                     CategoryPlot plot;
-                    if (categoryDataset.getRowCount() > 1) {
-                        plot = this.createStackedCategoryPlot(categoryDataset);
-                    } else {
-                        plot = this.createCategoryPlot(categoryDataset);
-                    }
+                    plot = this.createStackedCategoryPlot(categoryDataset);
                     LegendTitle lt = new LegendTitle(plot);
                     lt.setItemPaint(AppColors.text);
                     lt.setBackgroundPaint(AppColors.window);
                     lt.setFrame(new BlockBorder(new RectangleInsets(1,1,1,1), AppColors.grid));
-
-                    TextTitle tt = new TextTitle("This is\na multiline text\nto demonstrate the wrapping");
-                    tt.setTextAlignment(HorizontalAlignment.LEFT);
 
                     AreaTitleAnnotation ata = new AreaTitleAnnotation(lt);
                     ata.setAnnotationInsets(new RectangleInsets(10, 10, 10, 10));
@@ -207,17 +200,6 @@ class AppView {
         categoryPlot.setBackgroundPaint(AppColors.background);
         categoryPlot.setDomainGridlinePaint(AppColors.grid);
         categoryPlot.setRangeGridlinePaint(AppColors.grid);
-        return categoryPlot;
-    }
-
-    private CategoryPlot createCategoryPlot(CategoryDataset dataset) {
-        CategoryPlot categoryPlot = new CategoryPlot(dataset, null, createRangeAxis(), new DefaultCategoryItemRenderer());
-        categoryPlot.setForegroundAlpha(0.5f);
-        categoryPlot.setNoDataMessage("No data to display");
-        categoryPlot.setBackgroundPaint(AppColors.background);
-        categoryPlot.setDomainGridlinePaint(AppColors.grid);
-        categoryPlot.setRangeGridlinePaint(AppColors.grid);
-
         return categoryPlot;
     }
 

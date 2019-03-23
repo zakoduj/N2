@@ -39,4 +39,8 @@ public abstract class Feed<T> extends WebSocketClient {
             this.close();
         }
     }
+
+    public void push(Market market) {
+        this.observerList.forEach(iFeedObserver -> iFeedObserver.onMarketUpdate(market));
+    }
 }

@@ -1,13 +1,11 @@
 package Bitfinex;
 
-import Algorithm.Feed;
-import Algorithm.ILogger;
-import Algorithm.JsonReader;
-import Algorithm.JsonWriter;
+import Algorithm.*;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Bitfinex extends Feed<Bitfinex> {
@@ -61,16 +59,35 @@ public class Bitfinex extends Feed<Bitfinex> {
                 jsonReader = new JsonReader(Part[].class);
                 Part[] parts = jsonReader.read(s);
 
+                // Market snapshot
+                Market market = null;
+
                 // We need as fucking channel here. Channel number is fuckin' always 1st part.
                 Channel channel = this.channelMap.get((parts[0].get(Integer.class)));
-                switch (channel) {
-                    case trades:
-                        this.tradeBook.update(parts);
-                        break;
-                    case book:
-                        this.orderBook.update(parts);
-                        break;
+                if (channel == Channel.trades) {
+                    // Aktualizujemy trady
+                    this.tradeBook.update(parts);
+
+                    // Nastepnie, snapshot jest tworzony na podstawie tradow
+                    List<Trade> buys = this.tradeBook.select(t -> t.side == Trade.Side.Buy);
+                    List<Trade> sells = this.tradeBook.select(t -> t.side == Trade.Side.Sell);
+                    market = new Market(
+                            Market.createTrades(buys.size(), buys.stream().mapToDouble(d -> d.size).sum()),
+                            Market.createTrades(sells.size(), sells.stream().mapToDouble(d -> d.size).sum())
+                    );
+                } else if (channel == Channel.book) {
+                    // Aktualizujemy orderbook
+                    this.orderBook.update(parts);
+
+                    // A w tym przypadku - na podstawie orderbook
+                    market = new Market(
+                            Market.createBook(this.orderBook.asks.get(0).price, this.orderBook.asks.get(0).price),
+                            Market.createBook(this.orderBook.bids.get(0).price, this.orderBook.bids.get(0).price)
+                    );
                 }
+
+                // Pushujemy dane do obserwatorów
+                super.push(market);
             }
         } catch (Exception e) {
             this.logger.log(e);

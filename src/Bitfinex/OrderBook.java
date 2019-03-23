@@ -24,9 +24,27 @@ class OrderBook {
         public int compareTo(Level o) {
             return this.price.compareTo(o.price);
         }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other == null) {
+                return false;
+            }
+            if (other == this) {
+                return true;
+            }
+            if (!(other instanceof Level)) {
+                return false;
+            }
+            Level level = (Level)other;
+            return level.price.equals(this.price);
+        }
     }
 
+    // Przychodzac na gielde:
+    // Za tyle kupisz
     final List<Level> asks = new ArrayList<>();
+    // Za tyle sprzedasz
     final List<Level> bids = new ArrayList<>();
 
     void update(Part[] parts) {
@@ -53,7 +71,7 @@ class OrderBook {
                         int index = this.asks.indexOf(level);
                         if (index >= 0) {
                             // Już jest taki gosciu
-                            this.asks.get(index).size = size;
+                            this.asks.get(index).size = Math.abs(size);
                         } else {
                             this.asks.add(level);
                         }
@@ -62,7 +80,7 @@ class OrderBook {
                         int index = this.bids.indexOf(level);
                         if (index >= 0) {
                             // Już jest taki gosciu
-                            this.bids.get(index).size = size;
+                            this.bids.get(index).size = Math.abs(size);
                         } else {
                             this.bids.add(level);
                         }
@@ -130,7 +148,7 @@ class OrderBook {
         }
 
         // A teraz czas zeby to wszystko posortowac jak trzeba
-        this.asks.sort(Comparator.comparing(Level::getPrice).reversed());
-        this.bids.sort(Comparator.comparing(Level::getPrice));
+        this.asks.sort(Comparator.comparing(Level::getPrice));
+        this.bids.sort(Comparator.comparing(Level::getPrice).reversed());
     }
 }
