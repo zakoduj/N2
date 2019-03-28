@@ -5,7 +5,7 @@ import java.util.function.Consumer;
 
 public abstract class Tool {
     public class Result {
-        final double value;
+        public final double value;
 
         Result(double value) {
             this.value = value;
@@ -31,7 +31,7 @@ public abstract class Tool {
             this.results.addAll(Arrays.asList(results));
         }
 
-        <T extends Result> T get(Class<T> type) {
+        public <T extends Result> T get(Class<T> type) {
             for (Result result : this.results) {
                 if (type.isInstance(result)) {
                     return type.cast(result);

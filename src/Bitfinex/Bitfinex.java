@@ -81,8 +81,8 @@ public class Bitfinex extends Feed<Bitfinex> {
 
                     // A w tym przypadku - na podstawie orderbook
                     market = new Market(
-                            Market.createBook(this.orderBook.asks.get(0).price, this.orderBook.asks.get(0).price),
-                            Market.createBook(this.orderBook.bids.get(0).price, this.orderBook.bids.get(0).price)
+                            Market.createBook(this.orderBook.asks.get(0).price, this.orderBook.asks.get(0).size),
+                            Market.createBook(this.orderBook.bids.get(0).price, this.orderBook.bids.get(0).size)
                     );
                 }
 

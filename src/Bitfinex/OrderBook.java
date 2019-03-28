@@ -116,7 +116,7 @@ class OrderBook {
                         int index = this.asks.indexOf(level);
                         if (index >= 0) {
                             // Już jest taki gosciu
-                            this.asks.get(index).size = size;
+                            this.asks.get(index).size = Math.abs(size);
                         } else {
                             this.asks.add(level);
                         }
@@ -125,7 +125,7 @@ class OrderBook {
                         int index = this.bids.indexOf(level);
                         if (index >= 0) {
                             // Już jest taki gosciu
-                            this.bids.get(index).size = size;
+                            this.bids.get(index).size = Math.abs(size);
                         } else {
                             this.bids.add(level);
                         }

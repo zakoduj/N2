@@ -1,5 +1,7 @@
 package Algorithm;
 
+import java.util.List;
+
 /**
  * Snapshot obecnego stanu rynku
  */
@@ -88,5 +90,19 @@ public class Market {
 
     public static Book createBook(double price, double size) {
         return new Market().new Book(price, size);
+    }
+
+    public static Trades cumulateTrades(List<Trades> trades) {
+        if (trades == null) {
+            return null;
+        }
+        return new Market().new Trades(trades.stream().mapToInt(x -> x.count).sum(), trades.stream().mapToDouble(x -> x.volume).sum());
+    }
+
+    public static Book cumulateBook(List<Book> books) {
+        if (books == null) {
+            return null;
+        }
+        return new Market().new Book(books.stream().mapToDouble(x -> x.price).average().orElse(0), books.stream().mapToDouble(x -> x.size).average().orElse(0));
     }
 }

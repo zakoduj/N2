@@ -1,94 +1,279 @@
 package Algorithm;
 
+import TA.MACD;
+import TA.Tool;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.Dataset;
 import org.jfree.data.time.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
-class DatasetPrices {
-    private final int capacity;
-    private final TimeSeriesCollection dataset = new TimeSeriesCollection(new TimeSeries("Price"));
+interface DatasetUpdatable<T extends Dataset> {
+    void update(Market market);
+    void capacity(int value);
+    T dataset();
+}
 
-    /**
-     * @param capacity - ile ostatnich wartosci trzymamy.
-     */
-    DatasetPrices(int capacity) {
+class Prices extends TimeSeriesCollection implements DatasetUpdatable<TimeSeriesCollection> {
+    private int capacity;
+
+    Prices(int capacity) {
         this.capacity = capacity;
+        this.addSeries(new TimeSeries("Price"));
     }
 
-    void update(Market market) {
-        if (market == null) {
-            return;
-        }
+    @Override
+    public void update(Market market) {
         Double price = market.price();
         if (price == null) {
             return;
         }
-        System.out.println("Price: " + price);
         RegularTimePeriod regularTimePeriod = new FixedMillisecond();
-        TimeSeries timeSeries = this.dataset.getSeries(0);
-        while (timeSeries.getItemCount() > this.capacity) {
+        TimeSeries timeSeries = this.getSeries(0);
+        while (timeSeries.getItemCount() >= this.capacity) {
             timeSeries.delete(0, 1);
         }
         TimeSeriesDataItem timeSeriesDataItem = new TimeSeriesDataItem(regularTimePeriod, price);
         timeSeries.addOrUpdate(timeSeriesDataItem);
     }
 
-    Dataset dataset() {
-        return this.dataset;
+    @Override
+    public void capacity(int value) {
+        this.capacity = value;
+    }
+
+    @Override
+    public TimeSeriesCollection dataset() {
+        return this;
     }
 }
 
-class DatasetBooks {
-    private final int capacity;
-    private final DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+class Indicator extends TimeSeriesCollection implements DatasetUpdatable<TimeSeriesCollection> {
+    private int capacity;
+    private MACD macd = new MACD(12, 26, 9);
 
-    DatasetBooks(int capacity) {
-        this.capacity = capacity;
+    private enum Type {
+        Macd,
+        Signal,
+        Histogram
     }
 
-    void update(Market market) {
-        if (market == null || market.asks == null || market.bids == null) {
+    Indicator(int capacity) {
+        this.capacity = capacity;
+        this.addSeries(new TimeSeries(Type.Macd));
+        this.addSeries(new TimeSeries(Type.Signal));
+        this.addSeries(new TimeSeries(Type.Histogram));
+    }
+
+    @Override
+    public void update(Market market) {
+        Double price = market.price();
+        if (price == null) {
             return;
         }
-        while (this.dataset.getColumnCount() > this.capacity) {
-            this.dataset.removeColumn(0);
-        }
-        Integer columnCount = this.dataset.getColumnCount();
-        dataset.addValue(market.asks.size, "asks", columnCount);
-        dataset.addValue(market.bids.size, "bids", columnCount);
+
+        // Procesujemy!
+        Tool.ComplexResult complexResult = this.macd.next(price);
+
+        // Obecny czas
+        RegularTimePeriod timePeriod = new FixedMillisecond();
+
+        // I aktualizujemy wszystko
+        this.updateSeries(Type.Macd, timePeriod, complexResult.get(MACD.Macd.class).value);
+        this.updateSeries(Type.Signal, timePeriod, complexResult.get(MACD.Signal.class).value);
+        this.updateSeries(Type.Histogram, timePeriod, complexResult.get(MACD.Histogram.class).value);
     }
 
-    Dataset dataset() {
-        return this.dataset;
+    @Override
+    public void capacity(int value) {
+        this.capacity = value;
+    }
+
+    @Override
+    public TimeSeriesCollection dataset() {
+        return this;
+    }
+
+    private void updateSeries(Type type, RegularTimePeriod timePeriod, double value) {
+        TimeSeries timeSeries = this.getSeries(type);
+        if (timeSeries != null) {
+            while (timeSeries.getItemCount() >= this.capacity) {
+                timeSeries.delete(0, 1);
+            }
+            TimeSeriesDataItem timeSeriesDataItem = new TimeSeriesDataItem(timePeriod, value);
+            timeSeries.addOrUpdate(timeSeriesDataItem);
+        }
     }
 }
 
-class DatasetTrades {
-    private final int capacity;
-    private final DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+class Books extends DefaultCategoryDataset implements DatasetUpdatable<DefaultCategoryDataset> {
+    private int capacity;
+    private List<Double> asks = new ArrayList<>();
+    private List<Double> bids = new ArrayList<>();
 
-    DatasetTrades(int capacity) {
+    private enum Type {
+        Asks,
+        Bids
+    }
+
+    Books(int capacity) {
         this.capacity = capacity;
     }
 
-    void update(Market market) {
-        if (market == null || market.buys == null || market.sells == null) {
+    @Override
+    public void update(Market market) {
+        if (market.asks == null || market.bids == null) {
             return;
         }
-        while (this.dataset.getColumnCount() > this.capacity) {
-            this.dataset.removeColumn(0);
+
+        while (this.asks.size() >= this.capacity) {
+            this.asks.remove(0);
         }
-        Integer columnCount = this.dataset.getColumnCount();
-        dataset.addValue(market.buys.volume, "buys", columnCount);
-        dataset.addValue(market.sells.volume, "sells", columnCount);
+        this.asks.add(market.asks.size);
+
+        while (this.bids.size() >= this.capacity) {
+            this.bids.remove(0);
+        }
+        this.bids.add(market.bids.size);
+
+        for (int i = 0; i < this.asks.size(); i++) {
+            this.setValue(this.asks.get(i), Type.Asks, new Integer(i));
+        }
+        for (int i = 0; i < this.bids.size(); i++) {
+            this.setValue(this.bids.get(i), Type.Bids, new Integer(i));
+        }
     }
 
-    Dataset dataset() {
-        return this.dataset;
+    @Override
+    public void capacity(int value) {
+        this.capacity = value;
+    }
+
+    @Override
+    public DefaultCategoryDataset dataset() {
+        return this;
+    }
+}
+
+class Trades extends DefaultCategoryDataset implements DatasetUpdatable<DefaultCategoryDataset> {
+    private int capacity;
+    private List<Double> buys = new ArrayList<>();
+    private List<Double> sells = new ArrayList<>();
+
+    private enum Type {
+        Buys,
+        Sells
+    }
+
+    Trades(int capacity) {
+        this.capacity = capacity;
+    }
+
+    @Override
+    public void update(Market market) {
+        if (market.buys == null || market.sells == null) {
+            return;
+        }
+
+        while (this.buys.size() >= this.capacity) {
+            this.buys.remove(0);
+        }
+        this.buys.add(market.buys.volume);
+
+        while (this.sells.size() >= this.capacity) {
+            this.sells.remove(0);
+        }
+        this.sells.add(market.sells.volume);
+
+        for (int i = 0; i < this.buys.size(); i++) {
+            this.setValue(this.buys.get(i), Type.Buys, new Integer(i));
+        }
+        for (int i = 0; i < this.sells.size(); i++) {
+            this.setValue(this.sells.get(i), Type.Sells, new Integer(i));
+        }
+    }
+
+    @Override
+    public void capacity(int value) {
+        this.capacity = value;
+    }
+
+    @Override
+    public DefaultCategoryDataset dataset() {
+        return this;
+    }
+}
+
+class Datasets implements Iterable<DatasetUpdatable> {
+    private final List<DatasetUpdatable> datasets = new ArrayList<>();
+
+    Datasets(int capacity) {
+        this.datasets.add(new Prices(capacity));
+        this.datasets.add(new Indicator(capacity));
+        this.datasets.add(new Books(capacity));
+        this.datasets.add(new Trades(capacity));
+    }
+
+    List<Dataset> datasets() {
+        return this.datasets.stream().map(x -> x.dataset()).collect(Collectors.toList());
+    }
+
+    @Override
+    public Iterator<DatasetUpdatable> iterator() {
+        return this.datasets.iterator();
+    }
+
+    @Override
+    public void forEach(Consumer<? super DatasetUpdatable> action) {
+        this.datasets.forEach(action);
+    }
+
+    @Override
+    public Spliterator<DatasetUpdatable> spliterator() {
+        return this.datasets.spliterator();
+    }
+}
+
+class Cumulation {
+    private LocalDateTime lastTimeStamp = null;
+    private int step = 0;
+    private List<Market> temp = new ArrayList<>();
+
+    void setStep(int value) {
+        this.step = value;
+    }
+
+    synchronized void update(Market market, Consumer<Market> consumer) {
+        LocalDateTime current = LocalDateTime.now();
+        if (this.lastTimeStamp == null) {
+            this.lastTimeStamp = current;
+        } else {
+            Duration duration = Duration.between(this.lastTimeStamp, current);
+            if (duration.getSeconds() >= step) {
+                // construct averaged market snapshit
+                // Collect all trades from current period
+                List<Market.Trades> sells = this.temp.stream().map(x -> x.sells).filter(Objects::nonNull).collect(Collectors.toList());
+                List<Market.Trades> buys = this.temp.stream().map(x -> x.buys).filter(Objects::nonNull).collect(Collectors.toList());
+
+                List<Market.Book> asks = this.temp.stream().map(x -> x.asks).filter(Objects::nonNull).collect(Collectors.toList());
+                List<Market.Book> bids = this.temp.stream().map(x -> x.bids).filter(Objects::nonNull).collect(Collectors.toList());
+
+                // Construct averaged market snapshit
+                Market cumulative = new Market(Market.cumulateTrades(buys), Market.cumulateTrades(sells), Market.cumulateBook(asks), Market.cumulateBook(bids));
+                consumer.accept(cumulative);
+
+                // Save current time as a last time
+                this.lastTimeStamp = current;
+
+                // Reset collection
+                this.temp = new ArrayList<>();
+            }
+        }
+        temp.add(market);
     }
 }
 
@@ -97,11 +282,8 @@ class DatasetTrades {
  */
 public class DataSourceExchange extends DataSource implements IFeedObserver {
     private final Feed feed;
-
-    // Datasets - capacity
-    private final DatasetPrices datasetPrices = new DatasetPrices(10);
-    private final DatasetBooks datasetOrders = new DatasetBooks(10);
-    private final DatasetTrades datasetTrades = new DatasetTrades(10);
+    private final Datasets datasets = new Datasets(10);
+    private final Cumulation cumulation = new Cumulation();
 
     public DataSourceExchange(Feed feed) {
         this.feed = feed;
@@ -129,41 +311,22 @@ public class DataSourceExchange extends DataSource implements IFeedObserver {
             // Market jak najbardziej moze byc nullem.
             return;
         }
-        datasetPrices.update(market);
-        datasetOrders.update(market);
-        datasetTrades.update(market);
+        this.cumulation.update(market, cumulative -> this.datasets.forEach(datasetUpdatable -> datasetUpdatable.update(cumulative)));
+
     }
 
     @Override
     public List<Dataset> datasets() {
-//        TimeSeriesCollection lol = new TimeSeriesCollection(new TimeSeries("Price"));
-//        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 1)), 44));
-//        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 2)), 50));
-//        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 3)), 47));
-//        lol.getSeries(0).addOrUpdate(new TimeSeriesDataItem(new FixedMillisecond(new Date(2019, 3, 17, 1, 1, 4)), 41));
-//
-//        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-//        dataset.addValue(1.0, Category.LONGS, new Integer(1));
-//        dataset.addValue(2.0, Category.LONGS, new Integer(2));
-//        dataset.addValue(3.0, Category.LONGS, new Integer(3));
-//        dataset.addValue(5.0, Category.LONGS, new Integer(4));
-//
-//        dataset.addValue(3.0, Category.SHORTS, new Integer(1));
-//        dataset.addValue(1.0, Category.SHORTS, new Integer(2));
-//        dataset.addValue(2.0, Category.SHORTS, new Integer(3));
-//        dataset.addValue(1.0, Category.SHORTS, new Integer(4));
-//
-//        DefaultCategoryDataset executions = new DefaultCategoryDataset();
-//        executions.addValue(11.0, Category.BUYS, new Integer(1));
-//        executions.addValue(12.0, Category.BUYS, new Integer(2));
-//        executions.addValue(31.0, Category.BUYS, new Integer(3));
-//        executions.addValue(25.0, Category.BUYS, new Integer(4));
-//
-//        executions.addValue(13.0, Category.SELLS, new Integer(1));
-//        executions.addValue(9.0, Category.SELLS, new Integer(2));
-//        executions.addValue(2.0, Category.SELLS, new Integer(3));
-//        executions.addValue(1.0, Category.SELLS, new Integer(4));
+        return this.datasets.datasets();
+    }
 
-        return new ArrayList<>(Arrays.asList(this.datasetPrices.dataset(), this.datasetOrders.dataset(), this.datasetTrades.dataset()));
+    @Override
+    public void updateCapacity(int value) {
+        this.datasets.forEach(datasetUpdatable -> datasetUpdatable.capacity(value));
+    }
+
+    @Override
+    public void updateStep(int value) {
+        this.cumulation.setStep(value);
     }
 }
