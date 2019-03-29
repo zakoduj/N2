@@ -33,11 +33,15 @@ class GRU {
     private DoubleMatrix by;
 
     enum Type {
-        x_, h_, r_, z_, gh_
+        x_, h_, r_, z_, gh_, py_, y_, dy_
     }
 
     class Link {
         private final Map<Type, DoubleMatrix> points = new HashMap<>();
+
+        void add(Type type, DoubleMatrix matrix) {
+            this.points.put(type, matrix);
+        }
 
         DoubleMatrix get(Type type) {
             return this.points.get(type);
@@ -102,23 +106,31 @@ class GRU {
         this.by = new DoubleMatrix(1, outSize);
     }
 
-    public void active2(Chain chain) {
-        DoubleMatrix x = chain.last().get(Type.x_);
-//                acts.get("x" + t);
-        DoubleMatrix preH = chain.size() == 1 ?
-                t == 0 ? new DoubleMatrix(1, hiddenSize) : acts.get("h" + (t - 1));
+    /**
+     *
+     * @param input
+     * @param chain - ten chain - to jest taki mozna by powiedziec osobny troche byt w tym systemie.
+     */
+    public void active(DoubleMatrix input, LinkedList<Link> chain) {
+        Link current = new Link();
+        current.add(Type.x_, input);
 
-        DoubleMatrix r = logistic(x.mmul(Wxr).add(preH.mmul(Whr)).add(br));
-        DoubleMatrix z = logistic(x.mmul(Wxz).add(preH.mmul(Whz)).add(bz));
-        DoubleMatrix gh = tanh(x.mmul(Wxh).add(r.mul(preH).mmul(Whh)).add(bh));
+        DoubleMatrix preH = chain.isEmpty() ? new DoubleMatrix(1, hiddenSize) : chain.getLast().get(Type.h_);
+
+        DoubleMatrix r = logistic(input.mmul(Wxr).add(preH.mmul(Whr)).add(br));
+        DoubleMatrix z = logistic(input.mmul(Wxz).add(preH.mmul(Whz)).add(bz));
+        DoubleMatrix gh = tanh(input.mmul(Wxh).add(r.mul(preH).mmul(Whh)).add(bh));
         DoubleMatrix h = (DoubleMatrix.ones(1, z.columns).sub(z)).mul(preH).add(z.mul(gh));
 
-        acts.put("r" + t, r);
-        acts.put("z" + t, z);
-        acts.put("gh" + t, gh);
-        acts.put("h" + t, h);
+        current.add(Type.r_, r);
+        current.add(Type.z_, z);
+        current.add(Type.gh_, gh);
+        current.add(Type.h_, h);
+
+        chain.add(current);
     }
 
+    @Deprecated
     public void active(int t, Map<String, DoubleMatrix> acts) {
         DoubleMatrix x = acts.get("x" + t);
         DoubleMatrix preH = t == 0 ? new DoubleMatrix(1, hiddenSize) : acts.get("h" + (t - 1));
@@ -134,6 +146,55 @@ class GRU {
         acts.put("h" + t, h);
     }
 
+    public void bptt(LinkedList<Link> chain) {
+        for (int i = chain.size() - 1; i >= 0; i--) {
+            if (i == chain.size() - 1) {
+                continue;
+            }
+            Link current = chain.get(i);
+
+            DoubleMatrix py = current.get(Type.py_);
+            DoubleMatrix y = current.get(Type.y_);
+            DoubleMatrix deltaY = py.sub(y);
+            current.add(Type.dy_, deltaY);
+
+            // cell output errors
+            DoubleMatrix h = current.get(Type.h_);
+            DoubleMatrix z = current.get(Type.z_);
+            DoubleMatrix r = current.get(Type.r_);
+            DoubleMatrix gh = current.get(Type.gh_);
+
+            DoubleMatrix deltaH;
+        }
+        Iterator<Link> iterator = chain.descendingIterator();
+        while (iterator.hasNext()) {
+            Link current = iterator.next();
+            if (current == chain.getLast()) {
+                continue;
+            }
+
+
+            DoubleMatrix deltaH;
+            if (current == chain.getLast()) {
+                deltaH = Why.mmul(deltaY.transpose()).transpose();
+            } else {
+
+                DoubleMatrix lateDh = acts.get("dh" + (t + 1));
+                DoubleMatrix lateDgh = acts.get("dgh" + (t + 1));
+                DoubleMatrix lateDr = acts.get("dr" + (t + 1));
+                DoubleMatrix lateDz = acts.get("dz" + (t + 1));
+                DoubleMatrix lateR = acts.get("r" + (t + 1));
+                DoubleMatrix lateZ = acts.get("z" + (t + 1));
+                deltaH = Why.mmul(deltaY.transpose()).transpose()
+                        .add(Whr.mmul(lateDr.transpose()).transpose())
+                        .add(Whz.mmul(lateDz.transpose()).transpose())
+                        .add(Whh.mmul(lateDgh.mul(lateR).transpose()).transpose())
+                        .add(lateDh.mul(DoubleMatrix.ones(1, lateZ.columns).sub(lateZ)));
+            }
+        }
+    }
+
+    @Deprecated
     public void bptt(Map<String, DoubleMatrix> acts, int lastT) {
         for (int t = lastT; t > -1; t--) {
             DoubleMatrix py = acts.get("py" + t);
@@ -182,6 +243,13 @@ class GRU {
         updateParameters(acts, lastT, rate);
     }
 
+    public void decode(LinkedList<Link> chain) {
+        Link current = chain.getLast();
+        DoubleMatrix matrix = softmax(current.get(Type.h_).mmul(Why).add(by));
+        current.add(Type.py_, matrix);
+    }
+
+    @Deprecated
     public DoubleMatrix decode(DoubleMatrix ht) {
         return softmax(ht.mmul(Why).add(by));
     }
