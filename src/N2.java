@@ -33,7 +33,7 @@ class GRU {
     private DoubleMatrix by;
 
     enum Type {
-        x_, h_, r_, z_, gh_, py_, y_, dy_
+        x_, h_, r_, z_, gh_, py_, y_, dy_, dh_, dgh_, dr_, dz_
     }
 
     class Link {
@@ -115,7 +115,8 @@ class GRU {
         Link current = new Link();
         current.add(Type.x_, input);
 
-        DoubleMatrix preH = chain.isEmpty() ? new DoubleMatrix(1, hiddenSize) : chain.getLast().get(Type.h_);
+        Link previous = chain.getLast();
+        DoubleMatrix preH = previous == null ? new DoubleMatrix(1, hiddenSize) : previous.get(Type.h_);
 
         DoubleMatrix r = logistic(input.mmul(Wxr).add(preH.mmul(Whr)).add(br));
         DoubleMatrix z = logistic(input.mmul(Wxz).add(preH.mmul(Whz)).add(bz));
@@ -148,9 +149,9 @@ class GRU {
 
     public void bptt(LinkedList<Link> chain) {
         for (int i = chain.size() - 1; i >= 0; i--) {
-            if (i == chain.size() - 1) {
-                continue;
-            }
+//            if (i == chain.size() - 1) {
+//                continue;
+//            }
             Link current = chain.get(i);
 
             DoubleMatrix py = current.get(Type.py_);
@@ -165,32 +166,44 @@ class GRU {
             DoubleMatrix gh = current.get(Type.gh_);
 
             DoubleMatrix deltaH;
-        }
-        Iterator<Link> iterator = chain.descendingIterator();
-        while (iterator.hasNext()) {
-            Link current = iterator.next();
-            if (current == chain.getLast()) {
-                continue;
-            }
-
-
-            DoubleMatrix deltaH;
             if (current == chain.getLast()) {
                 deltaH = Why.mmul(deltaY.transpose()).transpose();
             } else {
-
-                DoubleMatrix lateDh = acts.get("dh" + (t + 1));
-                DoubleMatrix lateDgh = acts.get("dgh" + (t + 1));
-                DoubleMatrix lateDr = acts.get("dr" + (t + 1));
-                DoubleMatrix lateDz = acts.get("dz" + (t + 1));
-                DoubleMatrix lateR = acts.get("r" + (t + 1));
-                DoubleMatrix lateZ = acts.get("z" + (t + 1));
+                Link previous = chain.get(i + 1);
+                DoubleMatrix lateDh = previous.get(Type.dh_);
+                DoubleMatrix lateDgh = previous.get(Type.dgh_);
+                DoubleMatrix lateDr = previous.get(Type.dr_);
+                DoubleMatrix lateDz = previous.get(Type.dz_);
+                DoubleMatrix lateR = previous.get(Type.r_);
+                DoubleMatrix lateZ = previous.get(Type.z_);
                 deltaH = Why.mmul(deltaY.transpose()).transpose()
                         .add(Whr.mmul(lateDr.transpose()).transpose())
                         .add(Whz.mmul(lateDz.transpose()).transpose())
                         .add(Whh.mmul(lateDgh.mul(lateR).transpose()).transpose())
                         .add(lateDh.mul(DoubleMatrix.ones(1, lateZ.columns).sub(lateZ)));
             }
+
+            current.add(Type.dh_, deltaH);
+
+            // gh
+            DoubleMatrix deltaGh = deltaH.mul(z).mul(deriveTanh(gh));
+            current.add(Type.dgh_, deltaGh);
+
+            DoubleMatrix preH;
+            if (i > 0) {
+                Link next = chain.get(i - 1);
+                preH = next.get(Type.h_);
+            } else {
+                preH = DoubleMatrix.zeros(1, h.length);
+            }
+
+            // reset gates
+            DoubleMatrix deltaR = (Whh.mmul(deltaGh.mul(preH).transpose()).transpose()).mul(deriveExp(r));
+            current.add(Type.dr_, deltaR);
+
+            // update gates
+            DoubleMatrix deltaZ = deltaH.mul(gh.sub(preH)).mul(deriveExp(z));
+            current.add(Type.dz_, deltaZ);
         }
     }
 
@@ -254,6 +267,64 @@ class GRU {
         return softmax(ht.mmul(Why).add(by));
     }
 
+    private void updateParameters(LinkedList<Link> chain) {
+        DoubleMatrix gWxr = new DoubleMatrix(Wxr.rows, Wxr.columns);
+        DoubleMatrix gWhr = new DoubleMatrix(Whr.rows, Whr.columns);
+        DoubleMatrix gbr = new DoubleMatrix(br.rows, br.columns);
+
+        DoubleMatrix gWxz = new DoubleMatrix(Wxz.rows, Wxz.columns);
+        DoubleMatrix gWhz = new DoubleMatrix(Whz.rows, Whz.columns);
+        DoubleMatrix gbz = new DoubleMatrix(bz.rows, bz.columns);
+
+        DoubleMatrix gWxh = new DoubleMatrix(Wxh.rows, Wxh.columns);
+        DoubleMatrix gWhh = new DoubleMatrix(Whh.rows, Whh.columns);
+        DoubleMatrix gbh = new DoubleMatrix(bh.rows, bh.columns);
+
+        DoubleMatrix gWhy = new DoubleMatrix(Why.rows, Why.columns);
+        DoubleMatrix gby = new DoubleMatrix(by.rows, by.columns);
+
+        for (int i = 0; i < chain.size(); i++) {
+            Link current = chain.get(i);
+
+            DoubleMatrix x = current.get(Type.x_).transpose();
+            gWxr = gWxr.add(x.mmul(current.get(Type.dr_)));
+            gWxz = gWxz.add(x.mmul(current.get(Type.dz_)));
+            gWxh = gWxh.add(x.mmul(current.get(Type.dgh_)));
+
+            if (i > 0) {
+                Link previous = chain.get(i - 1);
+                DoubleMatrix preH = previous.get(Type.h_).transpose();
+                gWhr = gWhr.add(preH.mmul(current.get(Type.dr_)));
+                gWhz = gWhz.add(preH.mmul(current.get(Type.dz_)));
+                gWhh = gWhh.add(current.get(Type.r_).transpose().mul(preH).mmul(current.get(Type.dgh_)));
+            }
+            gWhy = gWhy.add(current.get(Type.h_).transpose().mmul(current.get(Type.dy_)));
+
+            gbr = gbr.add(current.get(Type.dr_));
+            gbz = gbz.add(current.get(Type.dz_));
+            gbh = gbh.add(current.get(Type.dgh_));
+            gby = gby.add(current.get(Type.dy_));
+        }
+
+        int size = chain.size();
+
+        Wxr = Wxr.sub(gWxr.div(size).mul(rate));
+        Whr = Whr.sub(gWhr.div(size < 2 ? 1 : (size - 1)).mul(rate));
+        br = br.sub(gbr.div(size).mul(rate));
+
+        Wxz = Wxz.sub(gWxz.div(size).mul(rate));
+        Whz = Whz.sub(gWhz.div(size < 2 ? 1 : (size - 1)).mul(rate));
+        bz = bz.sub(gbz.div(size).mul(rate));
+
+        Wxh = Wxh.sub(gWxh.div(size).mul(rate));
+        Whh = Whh.sub(gWhh.div(size < 2 ? 1 : (size - 1)).mul(rate));
+        bh = bh.sub(gbh.div(size).mul(rate));
+
+        Why = Why.sub(gWhy.div(size).mul(rate));
+        by = by.sub(gby.div(size).mul(rate));
+    }
+
+    @Deprecated
     private void updateParameters(Map<String, DoubleMatrix> acts, int lastT, double lr) {
         DoubleMatrix gWxr = new DoubleMatrix(Wxr.rows, Wxr.columns);
         DoubleMatrix gWhr = new DoubleMatrix(Whr.rows, Whr.columns);
