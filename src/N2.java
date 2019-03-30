@@ -46,43 +46,6 @@ class GRU {
         DoubleMatrix get(Type type) {
             return this.points.get(type);
         }
-
-        boolean has(Type type) {
-            return this.points.containsKey(type);
-        }
-    }
-
-    class Chain implements Iterable<Link> {
-        private final List<Link> links = new ArrayList<>();
-
-        int size() {
-            return this.links.size();
-        }
-
-        Link last() {
-            return this.links.get(this.links.size() - 1);
-        }
-
-        boolean has(Type type) {
-            for (int i = this.links.size() - 1; i >= 0; i--) {
-
-            }
-        }
-
-        @Override
-        public Iterator<Link> iterator() {
-            return this.links.iterator();
-        }
-
-        @Override
-        public void forEach(Consumer<? super Link> action) {
-            this.links.forEach(action);
-        }
-
-        @Override
-        public Spliterator<Link> spliterator() {
-            return this.links.spliterator();
-        }
     }
 
     public GRU(int inSize, int hiddenSize, int outSize) {
@@ -118,9 +81,9 @@ class GRU {
         Link previous = chain.getLast();
         DoubleMatrix preH = previous == null ? new DoubleMatrix(1, hiddenSize) : previous.get(Type.h_);
 
-        DoubleMatrix r = logistic(input.mmul(Wxr).add(preH.mmul(Whr)).add(br));
-        DoubleMatrix z = logistic(input.mmul(Wxz).add(preH.mmul(Whz)).add(bz));
-        DoubleMatrix gh = tanh(input.mmul(Wxh).add(r.mul(preH).mmul(Whh)).add(bh));
+        DoubleMatrix r = logistic(input.mmul(this.Wxr).add(preH.mmul(this.Whr)).add(this.br));
+        DoubleMatrix z = logistic(input.mmul(this.Wxz).add(preH.mmul(this.Whz)).add(this.bz));
+        DoubleMatrix gh = tanh(input.mmul(this.Wxh).add(r.mul(preH).mmul(this.Whh)).add(this.bh));
         DoubleMatrix h = (DoubleMatrix.ones(1, z.columns).sub(z)).mul(preH).add(z.mul(gh));
 
         current.add(Type.r_, r);
@@ -167,7 +130,7 @@ class GRU {
 
             DoubleMatrix deltaH;
             if (current == chain.getLast()) {
-                deltaH = Why.mmul(deltaY.transpose()).transpose();
+                deltaH = this.Why.mmul(deltaY.transpose()).transpose();
             } else {
                 Link previous = chain.get(i + 1);
                 DoubleMatrix lateDh = previous.get(Type.dh_);
@@ -176,10 +139,10 @@ class GRU {
                 DoubleMatrix lateDz = previous.get(Type.dz_);
                 DoubleMatrix lateR = previous.get(Type.r_);
                 DoubleMatrix lateZ = previous.get(Type.z_);
-                deltaH = Why.mmul(deltaY.transpose()).transpose()
-                        .add(Whr.mmul(lateDr.transpose()).transpose())
-                        .add(Whz.mmul(lateDz.transpose()).transpose())
-                        .add(Whh.mmul(lateDgh.mul(lateR).transpose()).transpose())
+                deltaH = this.Why.mmul(deltaY.transpose()).transpose()
+                        .add(this.Whr.mmul(lateDr.transpose()).transpose())
+                        .add(this.Whz.mmul(lateDz.transpose()).transpose())
+                        .add(this.Whh.mmul(lateDgh.mul(lateR).transpose()).transpose())
                         .add(lateDh.mul(DoubleMatrix.ones(1, lateZ.columns).sub(lateZ)));
             }
 
@@ -198,13 +161,14 @@ class GRU {
             }
 
             // reset gates
-            DoubleMatrix deltaR = (Whh.mmul(deltaGh.mul(preH).transpose()).transpose()).mul(deriveExp(r));
+            DoubleMatrix deltaR = (this.Whh.mmul(deltaGh.mul(preH).transpose()).transpose()).mul(deriveExp(r));
             current.add(Type.dr_, deltaR);
 
             // update gates
             DoubleMatrix deltaZ = deltaH.mul(gh.sub(preH)).mul(deriveExp(z));
             current.add(Type.dz_, deltaZ);
         }
+        updateParameters(chain);
     }
 
     @Deprecated
@@ -258,7 +222,7 @@ class GRU {
 
     public void decode(LinkedList<Link> chain) {
         Link current = chain.getLast();
-        DoubleMatrix matrix = softmax(current.get(Type.h_).mmul(Why).add(by));
+        DoubleMatrix matrix = softmax(current.get(Type.h_).mmul(this.Why).add(this.by));
         current.add(Type.py_, matrix);
     }
 
@@ -268,20 +232,20 @@ class GRU {
     }
 
     private void updateParameters(LinkedList<Link> chain) {
-        DoubleMatrix gWxr = new DoubleMatrix(Wxr.rows, Wxr.columns);
-        DoubleMatrix gWhr = new DoubleMatrix(Whr.rows, Whr.columns);
-        DoubleMatrix gbr = new DoubleMatrix(br.rows, br.columns);
+        DoubleMatrix gWxr = new DoubleMatrix(this.Wxr.rows, this.Wxr.columns);
+        DoubleMatrix gWhr = new DoubleMatrix(this.Whr.rows, this.Whr.columns);
+        DoubleMatrix gbr = new DoubleMatrix(this.br.rows, this.br.columns);
 
-        DoubleMatrix gWxz = new DoubleMatrix(Wxz.rows, Wxz.columns);
-        DoubleMatrix gWhz = new DoubleMatrix(Whz.rows, Whz.columns);
-        DoubleMatrix gbz = new DoubleMatrix(bz.rows, bz.columns);
+        DoubleMatrix gWxz = new DoubleMatrix(this.Wxz.rows, this.Wxz.columns);
+        DoubleMatrix gWhz = new DoubleMatrix(this.Whz.rows, this.Whz.columns);
+        DoubleMatrix gbz = new DoubleMatrix(this.bz.rows, this.bz.columns);
 
-        DoubleMatrix gWxh = new DoubleMatrix(Wxh.rows, Wxh.columns);
-        DoubleMatrix gWhh = new DoubleMatrix(Whh.rows, Whh.columns);
-        DoubleMatrix gbh = new DoubleMatrix(bh.rows, bh.columns);
+        DoubleMatrix gWxh = new DoubleMatrix(this.Wxh.rows, this.Wxh.columns);
+        DoubleMatrix gWhh = new DoubleMatrix(this.Whh.rows, this.Whh.columns);
+        DoubleMatrix gbh = new DoubleMatrix(this.bh.rows, this.bh.columns);
 
-        DoubleMatrix gWhy = new DoubleMatrix(Why.rows, Why.columns);
-        DoubleMatrix gby = new DoubleMatrix(by.rows, by.columns);
+        DoubleMatrix gWhy = new DoubleMatrix(this.Why.rows, this.Why.columns);
+        DoubleMatrix gby = new DoubleMatrix(this.by.rows, this.by.columns);
 
         for (int i = 0; i < chain.size(); i++) {
             Link current = chain.get(i);
@@ -308,20 +272,20 @@ class GRU {
 
         int size = chain.size();
 
-        Wxr = Wxr.sub(gWxr.div(size).mul(rate));
-        Whr = Whr.sub(gWhr.div(size < 2 ? 1 : (size - 1)).mul(rate));
-        br = br.sub(gbr.div(size).mul(rate));
+        this.Wxr = this.Wxr.sub(gWxr.div(size).mul(this.rate));
+        this.Whr = this.Whr.sub(gWhr.div(size < 2 ? 1 : (size - 1)).mul(this.rate));
+        this.br = this.br.sub(gbr.div(size).mul(this.rate));
 
-        Wxz = Wxz.sub(gWxz.div(size).mul(rate));
-        Whz = Whz.sub(gWhz.div(size < 2 ? 1 : (size - 1)).mul(rate));
-        bz = bz.sub(gbz.div(size).mul(rate));
+        this.Wxz = this.Wxz.sub(gWxz.div(size).mul(this.rate));
+        this.Whz = this.Whz.sub(gWhz.div(size < 2 ? 1 : (size - 1)).mul(this.rate));
+        this.bz = this.bz.sub(gbz.div(size).mul(this.rate));
 
-        Wxh = Wxh.sub(gWxh.div(size).mul(rate));
-        Whh = Whh.sub(gWhh.div(size < 2 ? 1 : (size - 1)).mul(rate));
-        bh = bh.sub(gbh.div(size).mul(rate));
+        this.Wxh = this.Wxh.sub(gWxh.div(size).mul(this.rate));
+        this.Whh = this.Whh.sub(gWhh.div(size < 2 ? 1 : (size - 1)).mul(this.rate));
+        this.bh = this.bh.sub(gbh.div(size).mul(this.rate));
 
-        Why = Why.sub(gWhy.div(size).mul(rate));
-        by = by.sub(gby.div(size).mul(rate));
+        this.Why = this.Why.sub(gWhy.div(size).mul(this.rate));
+        this.by = this.by.sub(gby.div(size).mul(this.rate));
     }
 
     @Deprecated
@@ -394,7 +358,7 @@ class GRU {
     }
 
     private DoubleMatrix uniform(int rows, int cols) {
-        return DoubleMatrix.rand(rows, cols).mul(2 * scale).sub(scale);
+        return DoubleMatrix.rand(rows, cols).mul(2 * this.scale).sub(this.scale);
     }
 
     private DoubleMatrix softmax(DoubleMatrix X) {
