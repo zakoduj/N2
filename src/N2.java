@@ -6,8 +6,58 @@ import org.jblas.DoubleMatrix;
 import org.jblas.MatrixFunctions;
 
 import javax.swing.*;
-import java.util.*;
-import java.util.function.Consumer;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.function.Predicate;
+
+class Standardizer {
+    private static final double EPSILON = Math.pow(2.0, -52.0);
+
+    /**
+     * Standardizes an array to mean 0 and variance 1.
+     */
+    public static double[] apply(double... x) {
+        double mu = sum(x) / x.length;
+        double sigma = Math.sqrt(variance(x));
+
+        if (Math.abs(sigma) < EPSILON) {
+            System.out.println("array has variance of 0.");
+            return x;
+        }
+
+        for (int i = 0; i < x.length; i++) {
+            x[i] = (x[i] - mu) / sigma;
+        }
+
+        return x;
+    }
+
+    private static double sum(double[] values) {
+        double sum = 0;
+        double c = 0;
+        for(double iv : values) {
+            double y = iv - c;
+            double t = sum + y;
+            c = (t - sum) - y;
+            sum = t;
+        }
+        return sum;
+    }
+
+    private static double variance(double[] data) {
+        double sum = 0.0;
+        double sumsq = 0.0;
+
+        for (double xi : data) {
+            sum += xi;
+            sumsq += xi * xi;
+        }
+
+        int n = data.length - 1;
+        return sumsq / n - (sum / data.length) * (sum / n);
+    }
+}
 
 class GRU {
     private final int inSize;
@@ -70,15 +120,43 @@ class GRU {
     }
 
     /**
-     *
-     * @param input
-     * @param chain - ten chain - to jest taki mozna by powiedziec osobny troche byt w tym systemie.
+     * Trenuj poki poziom bledu jest taki a nie inny.
      */
-    public void active(DoubleMatrix input, LinkedList<Link> chain) {
+    public void train(Map<double[], double[]> map, LinkedList<Link> chain, Predicate<Double> predicate) {
+        double error = map.size();
+        while (predicate.test(error / map.size())) {
+            for (Map.Entry<double[], double[]> entry : map.entrySet()) {
+                error += this.train(entry.getKey(), entry.getValue(), chain);
+            }
+            this.bptt(chain);
+        }
+    }
+
+    /**
+     * W procesie klasyfikacji, nie dodajemy prediction do lancucha. On jest osobnym bytem.
+     */
+    public double[] classify(LinkedList<Link> chain, double... in) {
+        Link current = this.activate(in, chain.getLast());
+        return current.get(Type.py_).data;
+    }
+
+    /**
+     * W procesie nauki, wszystko zostaje dodane do łańcucha.
+     */
+    private double train(double[] in, double[] out, LinkedList<Link> chain) {
+        Link current = this.activate(in, chain.getLast());
+
+        DoubleMatrix output = new DoubleMatrix(1, out.length, out);
+        current.add(Type.y_, output);
+        chain.add(current);
+        return this.getMeanCategoricalCrossEntropy(current.get(Type.py_), output);
+    }
+
+    private Link activate(double[] in, Link previous) {
         Link current = new Link();
+        DoubleMatrix input = new DoubleMatrix(1, in.length, in);
         current.add(Type.x_, input);
 
-        Link previous = chain.getLast();
         DoubleMatrix preH = previous == null ? new DoubleMatrix(1, hiddenSize) : previous.get(Type.h_);
 
         DoubleMatrix r = logistic(input.mmul(this.Wxr).add(preH.mmul(this.Whr)).add(this.br));
@@ -91,26 +169,14 @@ class GRU {
         current.add(Type.gh_, gh);
         current.add(Type.h_, h);
 
-        chain.add(current);
+        // Activation
+        DoubleMatrix a = softmax(h.mmul(this.Why).add(this.by));
+        current.add(Type.py_, a);
+
+        return current;
     }
 
-    @Deprecated
-    public void active(int t, Map<String, DoubleMatrix> acts) {
-        DoubleMatrix x = acts.get("x" + t);
-        DoubleMatrix preH = t == 0 ? new DoubleMatrix(1, hiddenSize) : acts.get("h" + (t - 1));
-
-        DoubleMatrix r = logistic(x.mmul(Wxr).add(preH.mmul(Whr)).add(br));
-        DoubleMatrix z = logistic(x.mmul(Wxz).add(preH.mmul(Whz)).add(bz));
-        DoubleMatrix gh = tanh(x.mmul(Wxh).add(r.mul(preH).mmul(Whh)).add(bh));
-        DoubleMatrix h = (DoubleMatrix.ones(1, z.columns).sub(z)).mul(preH).add(z.mul(gh));
-
-        acts.put("r" + t, r);
-        acts.put("z" + t, z);
-        acts.put("gh" + t, gh);
-        acts.put("h" + t, h);
-    }
-
-    public void bptt(LinkedList<Link> chain) {
+    private void bptt(LinkedList<Link> chain) {
         for (int i = chain.size() - 1; i >= 0; i--) {
 //            if (i == chain.size() - 1) {
 //                continue;
@@ -171,65 +237,7 @@ class GRU {
         updateParameters(chain);
     }
 
-    @Deprecated
-    public void bptt(Map<String, DoubleMatrix> acts, int lastT) {
-        for (int t = lastT; t > -1; t--) {
-            DoubleMatrix py = acts.get("py" + t);
-            DoubleMatrix y = acts.get("y" + t);
-            DoubleMatrix deltaY = py.sub(y);
-            acts.put("dy" + t, deltaY);
 
-            // cell output errors
-            DoubleMatrix h = acts.get("h" + t);
-            DoubleMatrix z = acts.get("z" + t);
-            DoubleMatrix r = acts.get("r" + t);
-            DoubleMatrix gh = acts.get("gh" + t);
-
-            DoubleMatrix deltaH;
-            if (t == lastT) {
-                deltaH = Why.mmul(deltaY.transpose()).transpose();
-            } else {
-                DoubleMatrix lateDh = acts.get("dh" + (t + 1));
-                DoubleMatrix lateDgh = acts.get("dgh" + (t + 1));
-                DoubleMatrix lateDr = acts.get("dr" + (t + 1));
-                DoubleMatrix lateDz = acts.get("dz" + (t + 1));
-                DoubleMatrix lateR = acts.get("r" + (t + 1));
-                DoubleMatrix lateZ = acts.get("z" + (t + 1));
-                deltaH = Why.mmul(deltaY.transpose()).transpose()
-                        .add(Whr.mmul(lateDr.transpose()).transpose())
-                        .add(Whz.mmul(lateDz.transpose()).transpose())
-                        .add(Whh.mmul(lateDgh.mul(lateR).transpose()).transpose())
-                        .add(lateDh.mul(DoubleMatrix.ones(1, lateZ.columns).sub(lateZ)));
-            }
-            acts.put("dh" + t, deltaH);
-
-            // gh
-            DoubleMatrix deltaGh = deltaH.mul(z).mul(deriveTanh(gh));
-            acts.put("dgh" + t, deltaGh);
-
-            DoubleMatrix preH = t > 0 ? acts.get("h" + (t - 1)) : DoubleMatrix.zeros(1, h.length);
-
-            // reset gates
-            DoubleMatrix deltaR = (Whh.mmul(deltaGh.mul(preH).transpose()).transpose()).mul(deriveExp(r));
-            acts.put("dr" + t, deltaR);
-
-            // update gates
-            DoubleMatrix deltaZ = deltaH.mul(gh.sub(preH)).mul(deriveExp(z));
-            acts.put("dz" + t, deltaZ);
-        }
-        updateParameters(acts, lastT, rate);
-    }
-
-    public void decode(LinkedList<Link> chain) {
-        Link current = chain.getLast();
-        DoubleMatrix matrix = softmax(current.get(Type.h_).mmul(this.Why).add(this.by));
-        current.add(Type.py_, matrix);
-    }
-
-    @Deprecated
-    public DoubleMatrix decode(DoubleMatrix ht) {
-        return softmax(ht.mmul(Why).add(by));
-    }
 
     private void updateParameters(LinkedList<Link> chain) {
         DoubleMatrix gWxr = new DoubleMatrix(this.Wxr.rows, this.Wxr.columns);
@@ -288,59 +296,6 @@ class GRU {
         this.by = this.by.sub(gby.div(size).mul(this.rate));
     }
 
-    @Deprecated
-    private void updateParameters(Map<String, DoubleMatrix> acts, int lastT, double lr) {
-        DoubleMatrix gWxr = new DoubleMatrix(Wxr.rows, Wxr.columns);
-        DoubleMatrix gWhr = new DoubleMatrix(Whr.rows, Whr.columns);
-        DoubleMatrix gbr = new DoubleMatrix(br.rows, br.columns);
-
-        DoubleMatrix gWxz = new DoubleMatrix(Wxz.rows, Wxz.columns);
-        DoubleMatrix gWhz = new DoubleMatrix(Whz.rows, Whz.columns);
-        DoubleMatrix gbz = new DoubleMatrix(bz.rows, bz.columns);
-
-        DoubleMatrix gWxh = new DoubleMatrix(Wxh.rows, Wxh.columns);
-        DoubleMatrix gWhh = new DoubleMatrix(Whh.rows, Whh.columns);
-        DoubleMatrix gbh = new DoubleMatrix(bh.rows, bh.columns);
-
-        DoubleMatrix gWhy = new DoubleMatrix(Why.rows, Why.columns);
-        DoubleMatrix gby = new DoubleMatrix(by.rows, by.columns);
-
-        for (int t = 0; t < lastT + 1; t++) {
-            DoubleMatrix x = acts.get("x" + t).transpose();
-            gWxr = gWxr.add(x.mmul(acts.get("dr" + t)));
-            gWxz = gWxz.add(x.mmul(acts.get("dz" + t)));
-            gWxh = gWxh.add(x.mmul(acts.get("dgh" + t)));
-
-            if (t > 0) {
-                DoubleMatrix preH = acts.get("h" + (t - 1)).transpose();
-                gWhr = gWhr.add(preH.mmul(acts.get("dr" + t)));
-                gWhz = gWhz.add(preH.mmul(acts.get("dz" + t)));
-                gWhh = gWhh.add(acts.get("r" + t).transpose().mul(preH).mmul(acts.get("dgh" + t)));
-            }
-            gWhy = gWhy.add(acts.get("h" + t).transpose().mmul(acts.get("dy" + t)));
-
-            gbr = gbr.add(acts.get("dr" + t));
-            gbz = gbz.add(acts.get("dz" + t));
-            gbh = gbh.add(acts.get("dgh" + t));
-            gby = gby.add(acts.get("dy" + t));
-        }
-
-        Wxr = Wxr.sub(gWxr.div(lastT).mul(lr));
-        Whr = Whr.sub(gWhr.div(lastT < 2 ? 1 : (lastT - 1)).mul(lr));
-        br = br.sub(gbr.div(lastT).mul(lr));
-
-        Wxz = Wxz.sub(gWxz.div(lastT).mul(lr));
-        Whz = Whz.sub(gWhz.div(lastT < 2 ? 1 : (lastT - 1)).mul(lr));
-        bz = bz.sub(gbz.div(lastT).mul(lr));
-
-        Wxh = Wxh.sub(gWxh.div(lastT).mul(lr));
-        Whh = Whh.sub(gWhh.div(lastT < 2 ? 1 : (lastT - 1)).mul(lr));
-        bh = bh.sub(gbh.div(lastT).mul(lr));
-
-        Why = Why.sub(gWhy.div(lastT).mul(lr));
-        by = by.sub(gby.div(lastT).mul(lr));
-    }
-
     private DoubleMatrix deriveExp(DoubleMatrix f) {
         return f.mul(DoubleMatrix.ones(1, f.length).sub(f));
     }
@@ -369,6 +324,28 @@ class GRU {
         }
         return expM;
     }
+
+    private double getMeanCategoricalCrossEntropy(DoubleMatrix P, DoubleMatrix Q) {
+        double e = 0;
+        if (P.rows == Q.rows) {
+            for (int i = 0; i < P.rows; i++) {
+                e += getCategoricalCrossEntropy(P.getRow(i), Q.getRow(i));
+            }
+            e /= P.rows;
+        } else {
+            System.exit(-1);
+        }
+        return e;
+    }
+
+    private double getCategoricalCrossEntropy(DoubleMatrix p, DoubleMatrix q) {
+        for (int i = 0; i < q.length; i++) {
+            if (q.get(i) == 0) {
+                q.put(i, 1e-10);
+            }
+        }
+        return -p.mul(MatrixFunctions.log(q)).sum();
+    }
 }
 
 /**
@@ -387,6 +364,17 @@ public class N2 {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        Map<double[], double[]> set = new HashMap<double[], double[]>(){{
+            put(Standardizer.apply(12, 14, 13, 15, 16), new double[] {0, 1});
+            put(Standardizer.apply(15, 13, 11, 9, 5), new double[] {1, 0});
+        }};
+        GRU gru = new GRU(5, 5 * 5, 2);
+        LinkedList<GRU.Link> chain = new LinkedList<>();
+        gru.train(set, chain, error -> error > 1);
+        double[] cls = gru.classify(chain, 12, 14, 13, 15, 16);
+
+
         SwingUtilities.invokeLater(() -> {
             AppController appController = new AppController(new Logger());
             appController.setVisible(true);
